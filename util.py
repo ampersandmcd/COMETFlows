@@ -4,6 +4,8 @@ import numpy.random as rng
 import matplotlib.pyplot as plt
 import pickle
 
+import datasets
+
 
 def isposint(n):
     """
@@ -375,3 +377,50 @@ def make_folder(folder):
 
     if not os.path.exists(folder):
         os.makedirs(folder)
+
+
+def load_data(name):
+    """
+    Loads the dataset. Has to be called before anything else.
+    :param name: string, the dataset's name
+    """
+
+    assert isinstance(name, str), "Name must be a string"
+    datasets.root = "data/"
+    data = data_name = None
+
+    if data_name == name:
+        return
+
+    if name == "mnist":
+        data = datasets.MNIST(logit=True, dequantize=True)
+        data_name = name
+
+    elif name == "bsds300":
+        data = datasets.BSDS300()
+        data_name = name
+
+    elif name == "cifar10":
+        data = datasets.CIFAR10(logit=True, flip=True, dequantize=True)
+        data_name = name
+
+    elif name == "power":
+        data = datasets.POWER()
+        data_name = name
+
+    elif name == "gas":
+        data = datasets.GAS()
+        data_name = name
+
+    elif name == "hepmass":
+        data = datasets.HEPMASS()
+        data_name = name
+
+    elif name == "miniboone":
+        data = datasets.MINIBOONE()
+        data_name = name
+
+    else:
+        raise ValueError("Unknown dataset")
+
+    return data, data_name
