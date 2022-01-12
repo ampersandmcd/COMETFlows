@@ -1,9 +1,3 @@
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-import torch
-import xarray as xr
-import pytorch_lightning as pl
 import pytorch_lightning as pl
 import wandb
 from argparse import ArgumentParser
@@ -11,8 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 import datasets
-import util
-from util import VisualCallback\
+from util import VisualCallback
 
 wandb.init(project="comet-flows", entity="andrewmcdonald")
 
@@ -85,4 +78,3 @@ if __name__ == "__main__":
     trainer.callbacks.append(VisualCallback(n_samples=args.n_samples, color=data.color, image_size=data.image_size))
 
     trainer.fit(model, train_dataloader, val_dataloader)
-
