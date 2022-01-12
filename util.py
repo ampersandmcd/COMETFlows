@@ -3,6 +3,8 @@ import numpy as np
 import numpy.random as rng
 import matplotlib.pyplot as plt
 import pickle
+import pandas as pd
+import seaborn as sns
 
 import datasets
 
@@ -258,7 +260,7 @@ def plot_hist_marginals(data, lims=None, gt=None):
     if data.ndim == 1:
 
         fig, ax = plt.subplots(1, 1)
-        ax.hist(data, n_bins, normed=True)
+        ax.hist(data, n_bins, density=True)
         ax.set_ylim([0, ax.get_ylim()[1]])
         if lims is not None: ax.set_xlim(lims)
         if gt is not None: ax.vlines(gt, 0, ax.get_ylim()[1], color='r')
@@ -277,7 +279,7 @@ def plot_hist_marginals(data, lims=None, gt=None):
             for j in range(n_dim):
 
                 if i == j:
-                    ax[i, j].hist(data[:, i], n_bins, normed=True)
+                    ax[i, j].hist(data[:, i], n_bins)
                     ax[i, j].set_ylim([0, ax[i, j].get_ylim()[1]])
                     if lims is not None: ax[i, j].set_xlim(lims[i])
                     if gt is not None: ax[i, j].vlines(gt[i], 0, ax[i, j].get_ylim()[1], color='r')
@@ -386,7 +388,7 @@ def load_data(name):
     """
 
     assert isinstance(name, str), "Name must be a string"
-    datasets.root = "data/"
+    datasets.root = "../MAFData/"
     data = data_name = None
 
     if data_name == name:
@@ -424,3 +426,28 @@ def load_data(name):
         raise ValueError("Unknown dataset")
 
     return data, data_name
+
+
+def jointplot(data, title):
+
+    if len(data) > 5000:
+        idx = np.random.choice(len(data), size=5000)
+        data = data[idx]
+
+    sns.jointplot(data=pd.DataFrame(data, columns=["x1", "x2"]),
+                  x="x1", y="x2", color="grey", s=10, alpha=0.2, height=4)
+    plt.suptitle(title)
+    plt.subplots_adjust(top=0.9)
+
+
+def pairplot(data, title):
+
+    if len(data) > 5000:
+        idx = np.random.choice(len(data), size=5000)
+        data = data[idx]
+
+    sns.pairplot(data=pd.DataFrame(data, columns=[f"x{i+1}" for i in range(data.shape[1])]),
+                 height=2, aspect=1, diag_kind="hist", diag_kws={"color": "grey"},
+                 plot_kws={"color": "grey", "s": 10, "alpha": 0.2})
+    plt.suptitle(title)
+    plt.subplots_adjust(top=0.9)

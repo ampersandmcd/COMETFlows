@@ -45,7 +45,7 @@ class MNIST:
 
         # load dataset
         f = gzip.open(datasets.root + 'mnist/mnist.pkl.gz', 'rb')
-        trn, val, tst = pickle.load(f)
+        trn, val, tst = pickle.load(f, encoding="latin1")
         f.close()
 
         rng = np.random.RandomState(42)
