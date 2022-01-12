@@ -56,6 +56,7 @@ class MNIST:
         self.n_dims = self.trn.x.shape[1]
         self.n_labels = self.trn.y.shape[1]
         self.image_size = [int(np.sqrt(self.n_dims))] * 2
+        self.color = "#0070c0"
 
     def show_pixel_histograms(self, split, pixel=None):
         """

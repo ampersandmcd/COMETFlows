@@ -32,6 +32,7 @@ class BSDS300:
         self.n_dims = self.trn.x.shape[1]
         self.image_size = [int(np.sqrt(self.n_dims + 1))] * 2
 
+        self.color = "#ffc000"
         f.close()
 
     def show_pixel_histograms(self, split, pixel=None):

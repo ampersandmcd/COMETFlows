@@ -36,7 +36,7 @@ def logit(x):
     return np.log(x / (1.0 - x))
 
 
-def disp_imdata(xs, imsize, layout=(1,1)):
+def imageplot(xs, imsize, layout=(1,1)):
     """
     Displays an array of images, a page at a time. The user can navigate pages with
     left and right arrows, start over by pressing space, or close the figure by esc.
@@ -68,7 +68,11 @@ def disp_imdata(xs, imsize, layout=(1,1)):
         ii = np.arange(idx[0], idx[0]+num_plots) % num_xs
 
         for ax, i in zip(axs, ii):
-            ax.imshow(xs[i].reshape(imsize), cmap='gray', interpolation='none')
+            if len(imsize) > 2:
+                img = xs[i].reshape(imsize).transpose(1, 2, 0)
+            else:
+                img = xs[i].reshape(imsize)
+            ax.imshow(img, interpolation='none')
             ax.set_title(str(i))
 
         fig.canvas.draw()
@@ -428,26 +432,32 @@ def load_data(name):
     return data, data_name
 
 
-def jointplot(data, title):
+def jointplot(data, title, color="grey"):
 
-    if len(data) > 5000:
-        idx = np.random.choice(len(data), size=5000)
+    rng = np.random.default_rng(seed=1)
+    if data.shape[0] > 1000:
+        idx = rng.choice(data.shape[0], size=1000, replace=False)
         data = data[idx]
 
     sns.jointplot(data=pd.DataFrame(data, columns=["x1", "x2"]),
-                  x="x1", y="x2", color="grey", s=10, alpha=0.2, height=4)
+                  x="x1", y="x2", color=color, s=10, alpha=0.2, height=4)
     plt.suptitle(title)
     plt.subplots_adjust(top=0.9)
 
 
-def pairplot(data, title):
+def pairplot(data, title, color="grey"):
 
-    if len(data) > 5000:
-        idx = np.random.choice(len(data), size=5000)
-        data = data[idx]
+    rng = np.random.default_rng(seed=1)
+    if data.shape[0] > 1000:
+        rows = rng.choice(data.shape[0], size=1000, replace=False)
+        data = data[rows]
+    cols = range(data.shape[1])
+    if data.shape[1] > 8:
+        cols = rng.choice(data.shape[1], size=8, replace=False)
+        data = data[:, cols]
 
-    sns.pairplot(data=pd.DataFrame(data, columns=[f"x{i+1}" for i in range(data.shape[1])]),
-                 height=2, aspect=1, diag_kind="hist", diag_kws={"color": "grey"},
-                 plot_kws={"color": "grey", "s": 10, "alpha": 0.2})
+    sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
+                 height=2, aspect=1, diag_kind="hist", diag_kws={"color": color},
+                 plot_kws={"color": color, "s": 10, "alpha": 0.2})
     plt.suptitle(title)
     plt.subplots_adjust(top=0.9)

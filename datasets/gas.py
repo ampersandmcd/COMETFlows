@@ -25,6 +25,7 @@ class GAS:
         self.tst = self.Data(tst)
 
         self.n_dims = self.trn.x.shape[1]
+        self.color = "#92d050"
 
     def show_histograms(self, split):
 

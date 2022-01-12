@@ -23,6 +23,7 @@ class POWER:
         self.tst = self.Data(tst)
 
         self.n_dims = self.trn.x.shape[1]
+        self.color = "#7030a0"
 
     def show_histograms(self, split):
 
