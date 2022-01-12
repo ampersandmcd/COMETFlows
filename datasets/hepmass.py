@@ -32,6 +32,7 @@ class HEPMASS:
 
         self.n_dims = self.trn.x.shape[1]
         self.color = "#00b050"
+        self.image_size = None
 
     def show_histograms(self, split, vars):
 

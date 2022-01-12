@@ -24,6 +24,7 @@ class POWER:
 
         self.n_dims = self.trn.x.shape[1]
         self.color = "#7030a0"
+        self.image_size = None
 
     def show_histograms(self, split):
 

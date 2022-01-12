@@ -26,6 +26,7 @@ class GAS:
 
         self.n_dims = self.trn.x.shape[1]
         self.color = "#92d050"
+        self.image_size = None
 
     def show_histograms(self, split):
 

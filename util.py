@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import pickle
 import pandas as pd
 import seaborn as sns
+import wandb
+from pytorch_lightning import Callback
+
 
 import datasets
 
@@ -36,12 +39,12 @@ def logit(x):
     return np.log(x / (1.0 - x))
 
 
-def imageplot(xs, imsize, layout=(1,1)):
+def imageplot(xs, image_size, layout=(1,1)):
     """
     Displays an array of images, a page at a time. The user can navigate pages with
     left and right arrows, start over by pressing space, or close the figure by esc.
     :param xs: an numpy array with images as rows
-    :param imsize: size of the images
+    :param image_size: size of the images
     :param layout: layout of images in a page
     :return: none
     """
@@ -68,10 +71,10 @@ def imageplot(xs, imsize, layout=(1,1)):
         ii = np.arange(idx[0], idx[0]+num_plots) % num_xs
 
         for ax, i in zip(axs, ii):
-            if len(imsize) > 2:
-                img = xs[i].reshape(imsize).transpose(1, 2, 0)
+            if len(image_size) > 2:
+                img = xs[i].reshape(image_size).transpose(1, 2, 0)
             else:
-                img = xs[i].reshape(imsize)
+                img = xs[i].reshape(image_size)
             ax.imshow(img, interpolation='none')
             ax.set_title(str(i))
 
@@ -461,3 +464,46 @@ def pairplot(data, title, color="grey"):
                  plot_kws={"color": color, "s": 10, "alpha": 0.2})
     plt.suptitle(title)
     plt.subplots_adjust(top=0.9)
+
+
+class VisualCallback(Callback):
+
+    def __init__(self, n_samples, color, image_size=None, log_every_n_epochs=1):
+        self.n_samples = n_samples
+        self.color = color
+        self.image_size = image_size
+        self.log_every_n_epochs = log_every_n_epochs
+
+    def _log_pairplot(self, data):
+        cols = range(data.shape[1])
+        if data.shape[1] > 8:
+            cols = rng.choice(data.shape[1], size=8, replace=False)
+            data = data[:, cols]
+
+        sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
+                     height=2, aspect=1, diag_kind="hist", diag_kws={"color": self.color},
+                     plot_kws={"color": self.color, "s": 10, "alpha": 0.2})
+        wandb.log({"sample_pairplots": plt})
+        
+    def _log_images(self, data):
+        fig, ax = plt.subplots(2, 5)
+        ax = ax.ravel()
+        for i in range(10):
+            if len(self.image_size) > 2:
+                img = data[i].reshape(self.image_size).transpose(1, 2, 0)
+            else:
+                img = data[i].reshape(self.image_size)
+            ax.imshow(img, interpolation="none")
+            ax.set_title(str(i))
+
+        wandb.log({"sample_images": plt})
+
+    def on_epoch_end(self, trainer, pl_module):
+        if pl_module.current_epoch % self.log_every_n_epochs != 0:
+            return
+        samples = None  # TODO
+        self._log_pairplot(samples)
+        if self.image_size:
+            self._log_images(samples)
+
+

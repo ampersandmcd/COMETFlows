@@ -25,6 +25,7 @@ class MINIBOONE:
 
         self.n_dims = self.trn.x.shape[1]
         self.color = "#00b0f0"
+        self.image_size = None
 
     def show_histograms(self, split, vars):
 
