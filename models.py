@@ -9,12 +9,13 @@ class GaussianNLL(nn.Module):
     """
     Compute negative log likelihood of sequential flow wrt isotropic latent Gaussian.
     """
-    def __init__(self):
+    def __init__(self, device):
         """
         Initialize Gaussian NLL nn.module.
         """
         super().__init__()
-        self.log2pi = torch.FloatTensor((np.log(2 * np.pi),))
+        self.device = device
+        self.log2pi = torch.FloatTensor((np.log(2 * np.pi),), device=self.device)
 
     def forward(self, z, delta_logp):
         """
@@ -34,13 +35,14 @@ class StudentNLL(nn.Module):
     """
     Compute negative log likelihood of sequential flow wrt isotropic latent Student T.
     """
-    def __init__(self, dof=1):
+    def __init__(self, device, dof=1):
         """
         Initialize Student NLL nn.module.
 
         :param dof: [float] Degrees of freedom parameter.
         """
         super().__init__()
+        self.device = device
         self.nu = torch.FloatTensor((dof,))
         self.pi = torch.FloatTensor((np.pi,))
         self.eps = 1e-10
@@ -176,7 +178,7 @@ class BaseFlow(pl.LightningModule):
 
     def forward(self, x, noise_level=None, logpx=None, reverse=False):
         if logpx is None:
-            logpx = torch.zeros(x.shape[0], 1)
+            logpx = torch.zeros(x.shape[0], 1, device=self.device)
 
         if reverse:
             layers = reversed(self.layers)
@@ -189,7 +191,7 @@ class BaseFlow(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.train()
-        x = batch["x"]
+        x = batch["x"].to(self.device)
         criterion = self.get_criterion()
 
         # perform forward pass
@@ -215,7 +217,7 @@ class BaseFlow(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         self.eval()
-        x = batch["x"]
+        x = batch["x"].to(self.device)
         criterion = self.get_criterion()
 
         # perform forward pass
@@ -253,10 +255,10 @@ class BaseFlow(pl.LightningModule):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
     def get_criterion(self):
-        return GaussianNLL()
+        return GaussianNLL(self.device)
 
     def get_z_samples(self, n_samples):
-        return torch.randn((n_samples, self.d))
+        return torch.randn((n_samples, self.d), device=self.device)
 
     def n_parameters(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -305,11 +307,11 @@ class HTSFlow(BaseFlow):
         self.dof = dof
 
     def get_criterion(self):
-        return StudentNLL(self.dof)
+        return StudentNLL(self.device, self.dof)
 
     def get_z_samples(self, n_samples):
         samples = scipy.stats.multivariate_t(loc=np.zeros(self.d,), shape=np.eye(self.d), df=self.dof).rvs(size=n_samples)
-        return torch.from_numpy(samples)
+        return torch.from_numpy(samples).to(self.device)
 
 
 class HTCFlow(BaseFlow):
