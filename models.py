@@ -15,7 +15,7 @@ class GaussianNLL(nn.Module):
         """
         super().__init__()
         self.device = device
-        self.log2pi = torch.FloatTensor((np.log(2 * np.pi),), device=self.device)
+        self.log2pi = torch.FloatTensor((np.log(2 * np.pi),)).to(self.device)
 
     def forward(self, z, delta_logp):
         """
