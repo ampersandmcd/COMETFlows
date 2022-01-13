@@ -312,7 +312,7 @@ class HTSFlow(BaseFlow):
 
     def get_z_samples(self, n_samples):
         samples = scipy.stats.multivariate_t(loc=np.zeros(self.d,), shape=np.eye(self.d), df=self.dof).rvs(size=n_samples)
-        return torch.from_numpy(samples).to(self.device)
+        return torch.from_numpy(samples).type(torch.FloatTensor).to(self.device)
 
 
 class HTCFlow(BaseFlow):
