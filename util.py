@@ -493,7 +493,7 @@ class VisualCallback(Callback):
             rng = np.random.default_rng(seed=1)
             cols = rng.choice(data.shape[1], size=8, replace=False)
             data = data[:, cols]
-
+        data = np.clip(data, -1e3, 1e3)    # safeguard against infinite values
         sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
                      height=2, aspect=1, diag_kind="hist", diag_kws={"color": self.color},
                      plot_kws={"color": self.color, "s": 10, "alpha": 0.2})

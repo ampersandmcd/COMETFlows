@@ -1,3 +1,4 @@
+import numpy as np
 import matplotlib.pyplot as plt
 
 import datasets
@@ -29,7 +30,9 @@ def explore_all():
 
 def explore_bsds300():
     bsds300 = datasets.BSDS300()
+    bsds300.trn.x = np.hstack((bsds300.trn.x, bsds300.trn.x[:, [-1]]))  # bsds300, need to add one pixel
     util.pairplot(bsds300.trn.x, title="BSDS300 Train", color=bsds300.color)
+    util.imageplot(bsds300.trn.x[:15], bsds300.image_size, layout=(3, 5))
     plt.show()
 
 
