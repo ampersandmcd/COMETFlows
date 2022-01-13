@@ -43,8 +43,8 @@ class StudentNLL(nn.Module):
         """
         super().__init__()
         self.device = device
-        self.nu = torch.FloatTensor((dof,))
-        self.pi = torch.FloatTensor((np.pi,))
+        self.nu = torch.FloatTensor((dof,)).to(self.device)
+        self.pi = torch.FloatTensor((np.pi,)).to(self.device)
         self.eps = 1e-10
 
     def forward(self, z, delta_logp):
