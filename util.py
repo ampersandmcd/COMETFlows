@@ -508,10 +508,9 @@ class VisualCallback(Callback):
             if len(self.image_size) > 2:
                 img = data[i].reshape(self.image_size).transpose(1, 2, 0)
             else:
-                img = data[i].reshape(self.image_size)
                 if data.shape[1] / image_size != image_size:
-                    # bsds300, need to add one pixel
-                    data = np.hstack((data, data[:, [-1]]))
+                    data = np.hstack((data, data[:, [-1]]))     # bsds300, need to add one pixel
+                img = data[i].reshape(self.image_size)
             ax[i].imshow(img, interpolation="none")
             ax[i].set_title(str(i))
             ax[i].axis("off")
