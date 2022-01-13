@@ -456,8 +456,8 @@ def pairplot(data, title, color="grey"):
         rows = rng.choice(data.shape[0], size=1000, replace=False)
         data = data[rows]
     cols = range(data.shape[1])
-    if data.shape[1] > 8:
-        cols = rng.choice(data.shape[1], size=8, replace=False)
+    if data.shape[1] > 10:
+        cols = rng.choice(data.shape[1], size=10, replace=False)
         data = data[:, cols]
 
     sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),

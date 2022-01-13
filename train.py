@@ -52,7 +52,7 @@ if __name__ == "__main__":
     elif args.data == "cifar10":
         data = datasets.CIFAR10()
     elif args.data == "climdex":
-        raise NotImplementedError()
+        data = datasets.CLIMDEX()
     elif args.data == "gas":
         data = datasets.GAS()
     elif args.data == "hepmass":
@@ -91,7 +91,6 @@ if __name__ == "__main__":
     wandb_logger = pl.loggers.WandbLogger(project="comet-flows")
     wandb_logger.watch(model, log="all", log_freq=10)
     wandb_logger.experiment.config.update(args)
-
 
     # trainer configuration
     trainer = pl.Trainer.from_argparse_args(args)

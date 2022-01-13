@@ -8,10 +8,10 @@ import util
 def explore_all():
 
     d = {
-        "artificial": None,
+        "artificial": datasets.ARTIFICIAL(),
         "bsds300": datasets.BSDS300(),
         "cifar10": datasets.CIFAR10(),
-        "climdex": None,
+        "climdex": datasets.CLIMDEX(),
         "gas": datasets.GAS(),
         "hepmass": datasets.HEPMASS(),
         "miniboone": datasets.MINIBOONE(),
@@ -28,6 +28,12 @@ def explore_all():
                   f"\ttst_n = {data.tst.x.shape[0]}")
 
 
+def explore_artificial():
+    artificial = datasets.ARTIFICIAL()
+    util.pairplot(artificial.trn.x, title="Artificial Train", color=artificial.color)
+    plt.show()
+
+
 def explore_bsds300():
     bsds300 = datasets.BSDS300()
     bsds300.trn.x = np.hstack((bsds300.trn.x, bsds300.trn.x[:, [-1]]))  # bsds300, need to add one pixel
@@ -40,6 +46,12 @@ def explore_cifar10():
     cifar10 = datasets.CIFAR10()
     util.pairplot(cifar10.trn.x, title="CIFAR10 Train", color=cifar10.color)
     util.imageplot(cifar10.trn.x[:15], cifar10.image_size, layout=(3, 5))
+    plt.show()
+
+
+def explore_climdex():
+    climdex = datasets.CLIMDEX()
+    util.pairplot(climdex.trn.x, title="CLIMDEX Train", color=climdex.color)
     plt.show()
 
 
@@ -75,8 +87,10 @@ def explore_power():
 
 
 if __name__ == "__main__":
+    explore_artificial()
     explore_bsds300()
     explore_cifar10()
+    explore_climdex()
     explore_gas()
     explore_hepmass()
     explore_miniboone()
