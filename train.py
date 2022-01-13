@@ -15,6 +15,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser = pl.Trainer.add_argparse_args(parser)
+    parser.add_argument("--name", default="default", type=str, help="Name of wandb run")
     parser.add_argument("--model", default="vanilla", type=str, help="Model to train",
                         choices=[
                             "vanilla",
@@ -84,9 +85,13 @@ if __name__ == "__main__":
         raise NotImplementedError()
 
     # wandb logging
+    wandb.init(project="comet-flows")
+    if args.name != "default":
+        wandb.run.name = args.name
     wandb_logger = pl.loggers.WandbLogger(project="comet-flows")
     wandb_logger.watch(model, log="all", log_freq=10)
     wandb_logger.experiment.config.update(args)
+
 
     # trainer configuration
     trainer = pl.Trainer.from_argparse_args(args)

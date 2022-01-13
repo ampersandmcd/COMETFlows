@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import scipy.stats
 
 import util
+from util import pairplot
 
 
 class ARTIFICIAL:
@@ -86,6 +87,8 @@ def load_data_normalised():
     data_train = x[:int(0.8 * n)]
     data_validate = x[int(0.8 * n):int(0.9 * n)]
     data_test = x[int(0.9 * n):]
+    # pairplot(data_train, "A")
+    # plt.show()
 
     return data_train, data_validate, data_test
 
