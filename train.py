@@ -64,9 +64,9 @@ if __name__ == "__main__":
         data = datasets.POWER()
 
     # configure dataloaders
-    train_dataset = NumpyDataset(data.trn.x).type(torch.FloatTensor)
+    train_dataset = NumpyDataset(data.trn.x)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4)
-    val_dataset = NumpyDataset(data.val.x).type(torch.FloatTensor)
+    val_dataset = NumpyDataset(data.val.x)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=4)
 
     model = None

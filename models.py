@@ -191,7 +191,7 @@ class BaseFlow(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.train()
-        x = batch["x"].to(self.device)
+        x = batch["x"].type(torch.FloatTensor).to(self.device)
         criterion = self.get_criterion()
 
         # perform forward pass
@@ -218,7 +218,7 @@ class BaseFlow(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         self.eval()
-        x = batch["x"].to(self.device)
+        x = batch["x"].type(torch.FloatTensor).to(self.device)
         criterion = self.get_criterion()
 
         # perform forward pass
