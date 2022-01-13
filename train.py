@@ -1,4 +1,6 @@
 import pytorch_lightning as pl
+import torch
+
 import wandb
 from argparse import ArgumentParser
 from torch.utils.data import Dataset, DataLoader
@@ -37,6 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("--hidden_ds", default=(64, 64, 64), type=tuple, help="Hidden dimensions in coupling NN")
     parser.add_argument("--n_samples", default=1000, type=tuple, help="Number of samples to generate")
     parser.add_argument("--lr", default=1e-3, type=float, help="Learning rate")
+    parser.add_argument("--img_epochs", default=1, type=int, help="How often to log images and pairplots")
     args = parser.parse_args()
 
     # configure data
@@ -61,9 +64,9 @@ if __name__ == "__main__":
         data = datasets.POWER()
 
     # configure dataloaders
-    train_dataset = NumpyDataset(data.trn.x)
+    train_dataset = NumpyDataset(data.trn.x).type(torch.FloatTensor)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4)
-    val_dataset = NumpyDataset(data.val.x)
+    val_dataset = NumpyDataset(data.val.x).type(torch.FloatTensor)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=4)
 
     model = None
@@ -88,6 +91,7 @@ if __name__ == "__main__":
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.logger = wandb_logger
     trainer.callbacks.append(ModelCheckpoint(monitor="v_loss"))
-    trainer.callbacks.append(VisualCallback(n_samples=args.n_samples, color=data.color, image_size=data.image_size))
+    trainer.callbacks.append(VisualCallback(n_samples=args.n_samples, color=data.color,
+                                            image_size=data.image_size, img_every_n_epochs=args.img_epochs))
 
     trainer.fit(model, train_dataloader, val_dataloader)
