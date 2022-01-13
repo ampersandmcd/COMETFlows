@@ -490,6 +490,7 @@ class VisualCallback(Callback):
     def _log_pairplot(self, data):
         cols = range(data.shape[1])
         if data.shape[1] > 8:
+            rng = np.random.default_rng(seed=1)
             cols = rng.choice(data.shape[1], size=8, replace=False)
             data = data[:, cols]
 
