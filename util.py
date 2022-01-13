@@ -497,6 +497,7 @@ class VisualCallback(Callback):
                      height=2, aspect=1, diag_kind="hist", diag_kws={"color": self.color},
                      plot_kws={"color": self.color, "s": 10, "alpha": 0.2})
         wandb.log({"sample_pairplots": wandb.Image(plt)})
+        plt.close()
         
     def _log_images(self, data):
         fig, ax = plt.subplots(2, 5)
@@ -510,6 +511,7 @@ class VisualCallback(Callback):
             ax.set_title(str(i))
 
         wandb.log({"sample_images": plt})
+        plt.close()
 
     def on_epoch_end(self, trainer, pl_module):
         if pl_module.current_epoch % self.log_every_n_epochs != 0:
