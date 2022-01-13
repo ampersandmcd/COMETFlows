@@ -83,7 +83,7 @@ if __name__ == "__main__":
 
     # wandb logging
     wandb_logger = pl.loggers.WandbLogger(project="comet-flows")
-    wandb_logger.watch(model, log="all")
+    wandb_logger.watch(model, log="all", log_freq=10)
 
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.logger = wandb_logger
