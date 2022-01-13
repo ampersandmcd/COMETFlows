@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import numpy.random as rng
 import matplotlib.pyplot as plt
 import pickle
 import pandas as pd
@@ -132,6 +131,7 @@ def discrete_sample(p, n_samples=1):
     c = np.cumsum(p[:-1])[np.newaxis, :]
 
     # get the samples
+    rng = np.random.default_rng(seed=1)
     r = rng.rand(n_samples, 1)
     return np.sum((r > c).astype(int), axis=1)
 
@@ -481,9 +481,11 @@ class NumpyDataset(Dataset):
 
 class VisualCallback(Callback):
 
-    def __init__(self, n_samples, color, image_size=None, img_every_n_epochs=1):
+    def __init__(self, n_samples, color, mins, maxs, image_size=None, img_every_n_epochs=1):
         self.n_samples = n_samples
         self.color = color
+        self.mins = mins
+        self.maxs = maxs
         self.image_size = image_size
         self.img_every_n_epochs = img_every_n_epochs
 
@@ -492,11 +494,15 @@ class VisualCallback(Callback):
         if data.shape[1] > 8:
             rng = np.random.default_rng(seed=1)
             cols = rng.choice(data.shape[1], size=8, replace=False)
-            data = data[:, cols]
-        data = np.clip(data, -1e3, 1e3)    # safeguard against infinite values
-        sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
-                     height=2, aspect=1, diag_kind="hist", diag_kws={"color": self.color},
-                     plot_kws={"color": self.color, "s": 10, "alpha": 0.2})
+        data = data[:, cols]
+        mins, maxs = self.mins[cols], self.maxs[cols]
+        g = sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
+                         height=2, aspect=1, diag_kind="hist", diag_kws={"color": self.color},
+                         plot_kws={"color": self.color, "s": 10, "alpha": 0.2})
+        for i in range(data.shape[1]):
+            for j in range(data.shape[1]):
+                g.axes[i, j].set_xlim((mins[j], maxs[j]))
+                g.axes[i, j].set_ylim((mins[i], maxs[i]))
         wandb.log({"sample_pairplots": wandb.Image(plt)})
         plt.close()
         
