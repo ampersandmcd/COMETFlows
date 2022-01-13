@@ -214,6 +214,7 @@ class BaseFlow(pl.LightningModule):
         self.log("t_loss", nll, prog_bar=True)
         self.log("t_nan", torch.sum(nan_idx), prog_bar=True)
         self.log("t_inf", torch.sum(inf_idx), prog_bar=True)
+        return nll
 
     def validation_step(self, batch, batch_idx):
         self.eval()

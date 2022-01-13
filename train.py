@@ -11,7 +11,6 @@ from models import VanillaFlow, HTSFlow, HTCFlow, TDFlow, COMETFlow
 
 if __name__ == "__main__":
 
-    wandb.init(project="comet-flows", entity="andrewmcdonald")
     parser = ArgumentParser()
     parser = pl.Trainer.add_argparse_args(parser)
     parser.add_argument("--model", default="vanilla", type=str, help="Model to train",
@@ -82,8 +81,8 @@ if __name__ == "__main__":
         pass
 
     # wandb logging
-    wandb.watch(model, log="all", log_freq=10)
     wandb_logger = pl.loggers.WandbLogger(project="comet-flows")
+    wandb_logger.watch(model, log="all", log_freq=10)
 
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.logger = wandb_logger
