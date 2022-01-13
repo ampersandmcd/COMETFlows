@@ -511,8 +511,8 @@ class VisualCallback(Callback):
                 img = data[i].reshape(self.image_size).transpose(1, 2, 0)
             else:
                 img = data[i].reshape(self.image_size)
-            ax.imshow(img, interpolation="none")
-            ax.set_title(str(i))
+            ax[i].imshow(img, interpolation="none")
+            ax[i].set_title(str(i))
 
         wandb.log({"sample_images": plt})
         plt.close()
