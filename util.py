@@ -7,6 +7,7 @@ import pandas as pd
 import seaborn as sns
 import wandb
 from pytorch_lightning import Callback
+from torch.utils.data import Dataset
 
 
 import datasets
@@ -466,6 +467,18 @@ def pairplot(data, title, color="grey"):
     plt.subplots_adjust(top=0.9)
 
 
+class NumpyDataset(Dataset):
+
+    def __init__(self, array):
+        self.array = array
+
+    def __len__(self):
+        return len(self.array)
+
+    def __getitem__(self, i):
+        return {"x": self.array[i]}
+
+
 class VisualCallback(Callback):
 
     def __init__(self, n_samples, color, image_size=None, log_every_n_epochs=1):
@@ -483,7 +496,7 @@ class VisualCallback(Callback):
         sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
                      height=2, aspect=1, diag_kind="hist", diag_kws={"color": self.color},
                      plot_kws={"color": self.color, "s": 10, "alpha": 0.2})
-        wandb.log({"sample_pairplots": plt})
+        wandb.log({"sample_pairplots": wandb.Image(plt)})
         
     def _log_images(self, data):
         fig, ax = plt.subplots(2, 5)
@@ -501,7 +514,7 @@ class VisualCallback(Callback):
     def on_epoch_end(self, trainer, pl_module):
         if pl_module.current_epoch % self.log_every_n_epochs != 0:
             return
-        samples = None  # TODO
+        samples = pl_module.sample(self.n_samples).detach().cpu().numpy()
         self._log_pairplot(samples)
         if self.image_size:
             self._log_images(samples)

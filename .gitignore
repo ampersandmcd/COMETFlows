@@ -3,6 +3,8 @@
 .vscode/
 venv/
 conda/
+wandb/
+comet-flows/
 
 # exclude cached/compiled code
 __pycache__/
