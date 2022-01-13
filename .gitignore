@@ -6,6 +6,9 @@ conda/
 wandb/
 comet-flows/
 
+# exclude experiment scripts
+*.sh
+
 # exclude cached/compiled code
 __pycache__/
 *.py[cod]

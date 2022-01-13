@@ -503,13 +503,12 @@ class VisualCallback(Callback):
     def _log_images(self, data):
         fig, ax = plt.subplots(2, 5)
         ax = ax.ravel()
-        image_size = int(np.sqrt(data.shape[1]))
+        if data.shape[1] == 63:
+            data = np.hstack((data, data[:, [-1]]))  # bsds300, need to add one pixel
         for i in range(10):
             if len(self.image_size) > 2:
                 img = data[i].reshape(self.image_size).transpose(1, 2, 0)
             else:
-                if data.shape[1] / image_size != image_size:
-                    data = np.hstack((data, data[:, [-1]]))     # bsds300, need to add one pixel
                 img = data[i].reshape(self.image_size)
             ax[i].imshow(img, interpolation="none")
             ax[i].set_title(str(i))
