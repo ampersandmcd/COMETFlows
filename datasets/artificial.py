@@ -87,10 +87,6 @@ def load_data_normalised():
     data_validate = x[int(0.8 * n):int(0.9 * n)]
     data_test = x[int(0.9 * n):]
 
-    from util import pairplot
-    pairplot(data_train, "A")
-    plt.show()
-
     return data_train, data_validate, data_test
 
 
