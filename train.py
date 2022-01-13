@@ -23,7 +23,7 @@ if __name__ == "__main__":
                             "td",
                             "comet-10", "comet-05", "comet-01"
                         ])
-    parser.add_argument("--data", default="power", type=str, help="Dataset to train on",
+    parser.add_argument("--data", default="artificial", type=str, help="Dataset to train on",
                         choices=[
                             "artificial",
                             "bsds300",
@@ -39,13 +39,13 @@ if __name__ == "__main__":
     parser.add_argument("--hidden_ds", default=(64, 64, 64), type=tuple, help="Hidden dimensions in coupling NN")
     parser.add_argument("--n_samples", default=1000, type=tuple, help="Number of samples to generate")
     parser.add_argument("--lr", default=1e-3, type=float, help="Learning rate")
-    parser.add_argument("--img_epochs", default=1, type=int, help="How often to log images and pairplots")
+    parser.add_argument("--img_epochs", default=10, type=int, help="How often to log images and pairplots")
     args = parser.parse_args()
 
     # configure data
     data = None
     if args.data == "artificial":
-        raise NotImplementedError()
+        data = datasets.ARTIFICIAL()
     elif args.data == "bsds300":
         data = datasets.BSDS300()
     elif args.data == "cifar10":
@@ -88,10 +88,13 @@ if __name__ == "__main__":
     wandb_logger.watch(model, log="all", log_freq=10)
     wandb_logger.experiment.config.update(args)
 
+    # trainer configuration
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.logger = wandb_logger
     trainer.callbacks.append(ModelCheckpoint(monitor="v_loss"))
+    mins, maxs = data.trn.x.min(axis=0), data.trn.x.max(axis=0)
     trainer.callbacks.append(VisualCallback(n_samples=args.n_samples, color=data.color,
+                                            mins=mins, maxs=maxs,
                                             image_size=data.image_size, img_every_n_epochs=args.img_epochs))
 
     trainer.fit(model, train_dataloader, val_dataloader)
