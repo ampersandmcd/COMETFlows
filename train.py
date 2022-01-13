@@ -47,22 +47,31 @@ if __name__ == "__main__":
     data = None
     if args.data == "artificial":
         data = datasets.ARTIFICIAL()
+        args.max_epochs = 1000
     elif args.data == "bsds300":
         data = datasets.BSDS300()
+        args.max_epochs = 200
     elif args.data == "cifar10":
         data = datasets.CIFAR10()
+        args.max_epochs = 1000
     elif args.data == "climdex":
         data = datasets.CLIMDEX()
+        args.max_epochs = 1000
     elif args.data == "gas":
         data = datasets.GAS()
+        args.max_epochs = 200
     elif args.data == "hepmass":
         data = datasets.HEPMASS()
+        args.max_epochs = 500
     elif args.data == "miniboone":
         data = datasets.MINIBOONE()
+        args.max_epochs = 1000
     elif args.data == "mnist":
         data = datasets.MNIST()
+        args.max_epochs = 1000
     elif args.data == "power":
         data = datasets.POWER()
+        args.max_epochs = 200
 
     # configure dataloaders
     train_dataset = NumpyDataset(data.trn.x)
