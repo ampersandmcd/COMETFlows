@@ -121,8 +121,8 @@ class CouplingLayer(nn.Module):
             nn.Linear(hidden_d, (d - self.d) * 2),
         )
         if conditional_noise:
-            self.hyper_gate = nn.Linear(1, self.d)
-            self.hyper_bias = nn.Linear(1, self.d)
+            self.hyper_gate = nn.Linear(1, (d - self.d) * 2)
+            self.hyper_bias = nn.Linear(1, (d - self.d) * 2)
 
     def forward(self, x, noise_level=None, logpx=None, reverse=False):
         """
