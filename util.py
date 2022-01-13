@@ -481,11 +481,11 @@ class NumpyDataset(Dataset):
 
 class VisualCallback(Callback):
 
-    def __init__(self, n_samples, color, image_size=None, log_every_n_epochs=1):
+    def __init__(self, n_samples, color, image_size=None, img_every_n_epochs=1):
         self.n_samples = n_samples
         self.color = color
         self.image_size = image_size
-        self.log_every_n_epochs = log_every_n_epochs
+        self.img_every_n_epochs = img_every_n_epochs
 
     def _log_pairplot(self, data):
         cols = range(data.shape[1])
@@ -502,6 +502,10 @@ class VisualCallback(Callback):
     def _log_images(self, data):
         fig, ax = plt.subplots(2, 5)
         ax = ax.ravel()
+        image_size = int(np.sqrt(data.shape[1]))
+        if data.shape[1] / image_size != image_size:
+            # bsds300, need to add one pixel
+            data = np.hstack((data, data[:, [-1]]))
         for i in range(10):
             if len(self.image_size) > 2:
                 img = data[i].reshape(self.image_size).transpose(1, 2, 0)
@@ -514,7 +518,7 @@ class VisualCallback(Callback):
         plt.close()
 
     def on_epoch_end(self, trainer, pl_module):
-        if pl_module.current_epoch % self.log_every_n_epochs != 0:
+        if pl_module.current_epoch % self.img_every_n_epochs != 0:
             return
         samples = pl_module.sample(self.n_samples).detach().cpu().numpy()
         self._log_pairplot(samples)
