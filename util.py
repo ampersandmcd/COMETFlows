@@ -503,16 +503,17 @@ class VisualCallback(Callback):
         fig, ax = plt.subplots(2, 5)
         ax = ax.ravel()
         image_size = int(np.sqrt(data.shape[1]))
-        if data.shape[1] / image_size != image_size:
-            # bsds300, need to add one pixel
-            data = np.hstack((data, data[:, [-1]]))
         for i in range(10):
             if len(self.image_size) > 2:
                 img = data[i].reshape(self.image_size).transpose(1, 2, 0)
             else:
                 img = data[i].reshape(self.image_size)
+                if data.shape[1] / image_size != image_size:
+                    # bsds300, need to add one pixel
+                    data = np.hstack((data, data[:, [-1]]))
             ax[i].imshow(img, interpolation="none")
             ax[i].set_title(str(i))
+            ax[i].axis("off")
 
         wandb.log({"sample_images": plt})
         plt.close()
