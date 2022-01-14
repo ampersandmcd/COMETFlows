@@ -3,6 +3,11 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 import scipy.stats
+import scipy.optimize
+import statsmodels.api as sm
+
+from scipy.stats import genpareto
+from interp1d import Interp1d
 
 
 class GaussianNLL(nn.Module):
@@ -68,6 +73,257 @@ class StudentNLL(nn.Module):
         return -torch.sum(log_px)
 
 
+class TorchGPD:
+    """
+    Implement collection of two 1D GPD distributions to model tails of distribution.
+    """
+    def __init__(self, device, data, a, b, alpha, beta):
+        self.device = device
+        self.a, self.b, self.alpha, self.beta = a, b, alpha, beta
+        self.eps = 0
+
+        # fit parameters of lower tail
+        lower_data = data[data < self.alpha].detach().cpu().numpy()
+        if len(lower_data) > 1:
+            self.lower_xi, self.lower_mu, self.lower_sigma = genpareto.fit(self.alpha.detach().cpu().numpy() - lower_data)
+            self.lower_xi = np.clip(self.lower_xi, 0, 1)    # clip to well-behaved xi range
+        else:
+            self.lower_xi, self.lower_mu, self.lower_sigma = None, None, None
+
+        # fit parameters of upper tail
+        upper_data = data[data > self.beta].detach().cpu().numpy()
+        if len(upper_data) > 1:
+            self.upper_xi, self.upper_mu, self.upper_sigma = genpareto.fit(-self.beta.detach().cpu().numpy() + upper_data)
+            self.upper_xi = np.clip(self.upper_xi, 0, 1)    # clip to well-behaved xi range
+        else:
+            self.upper_xi, self.upper_mu, self.upper_sigma = None, None, None
+
+    def split_data(self, x, quantile=False):
+
+        left, right = self.a if quantile else self.alpha, self.b if quantile else self.beta
+        lower_idx = x < left + self.eps
+        upper_idx = x > right - self.eps
+        middle_idx = torch.logical_not(torch.logical_or(lower_idx, upper_idx))
+        lower_data = x[lower_idx].detach().cpu().numpy()
+        upper_data = x[upper_idx].detach().cpu().numpy()
+        middle_data = x[middle_idx].detach().cpu().numpy()
+        return (lower_idx, middle_idx, upper_idx), (lower_data, middle_data, upper_data)
+
+    def cdf(self, x):
+
+        (lower_idx, middle_idx, upper_idx), (lower_data, middle_data, upper_data) = self.split_data(x)
+
+        # handle asymmetric tail logic: when a=0 (b=1, resp.), the left (right, resp.) tail will not matter
+        # recall that torch.where will properly merge KDE with tails, so we can set points in middle to anything (zero)
+        middle_cdf = torch.zeros((middle_data.shape[0])).to(self.device)
+        if self.a == 0:
+            lower_cdf = torch.zeros((lower_data.shape[0])).type(torch.FloatTensor).to(self.device)
+        else:
+            lower_cdf = self.a.detach().cpu().numpy() * (1 - genpareto.cdf(self.alpha.detach().cpu().numpy() - lower_data, loc=-self.lower_mu, scale=self.lower_sigma, c=self.lower_xi))
+            lower_cdf = torch.from_numpy(lower_cdf).type(torch.FloatTensor).to(self.device)
+        if self.b == 1:
+            upper_cdf = torch.zeros((upper_data.shape[0])).type(torch.FloatTensor).to(self.device)
+        else:
+            upper_cdf = self.b.detach().cpu().numpy() + (1 - self.b.detach().cpu().numpy()) * genpareto.cdf(-self.beta.detach().cpu().numpy() + upper_data, loc=self.upper_mu, scale=self.upper_sigma, c=self.upper_xi)
+            upper_cdf = torch.from_numpy(upper_cdf).type(torch.FloatTensor).to(self.device)
+
+        cdf = torch.zeros_like(x).to(self.device)
+        cdf[lower_idx] = lower_cdf
+        cdf[middle_idx] = middle_cdf
+        cdf[upper_idx] = upper_cdf
+        return cdf
+
+    def log_prob(self, x):
+
+        (lower_idx, middle_idx, upper_idx), (lower_data, middle_data, upper_data) = self.split_data(x)
+
+        # handle asymmetric tail logic: when a=0 (b=1, resp.), the left (right, resp.) tail will not matter
+        # recall that torch.where will properly merge KDE with tails, so we can set points in middle to anything (zero)
+        middle_log_prob = torch.zeros((middle_data.shape[0])).to(self.device)
+        if self.a == 0:
+            lower_log_prob = torch.zeros((lower_data.shape[0])).type(torch.FloatTensor).to(self.device)
+        else:
+            lower_log_prob = np.log(self.a.detach().cpu().numpy()) + genpareto.logpdf(self.alpha.detach().cpu().numpy() - lower_data, loc=-self.lower_mu, scale=self.lower_sigma, c=self.lower_xi)
+            lower_log_prob = torch.from_numpy(lower_log_prob).type(torch.FloatTensor).to(self.device)
+        if self.b == 1:
+            upper_log_prob = torch.zeros((upper_data.shape[0])).type(torch.FloatTensor).to(self.device)
+        else:
+            upper_log_prob = np.log(1 - self.b.detach().cpu().numpy()) + genpareto.logpdf(-self.beta.detach().cpu().numpy() + upper_data, loc=self.upper_mu, scale=self.upper_sigma, c=self.upper_xi)
+            upper_log_prob = torch.from_numpy(upper_log_prob).type(torch.FloatTensor).to(self.device)
+
+        log_prob = torch.zeros_like(x).to(self.device)
+        log_prob[lower_idx] = lower_log_prob
+        log_prob[middle_idx] = middle_log_prob
+        log_prob[upper_idx] = upper_log_prob
+        return log_prob
+
+    def icdf(self, u):
+
+        u = u.clip(0, 1)    # compensate for any numerical instability
+        (lower_idx, middle_idx, upper_idx), (lower_u, middle_u, upper_u) = self.split_data(u, quantile=True)
+
+        # handle asymmetric tail logic: when a=0 (b=1, resp.), the left (right, resp.) tail will not matter
+        # recall that torch.where will properly merge KDE with each tail, so we can set irrelevant points here to zero
+        middle_icdf = torch.ones((middle_u.shape[0])).to(self.device)
+        if self.a == 0:
+            lower_icdf = torch.ones((lower_u.shape[0])).type(torch.FloatTensor).to(self.device)
+        else:
+            lower_icdf = self.alpha.detach().cpu().numpy() - genpareto.ppf(1 - lower_u / self.a.detach().cpu().numpy(), c=self.lower_xi)
+            lower_icdf = torch.from_numpy(lower_icdf).type(torch.FloatTensor).to(self.device)
+        if self.b == 1:
+            upper_icdf = torch.ones((upper_u.shape[0])).type(torch.FloatTensor).to(self.device)
+        else:
+            upper_icdf = self.beta.detach().cpu().numpy() + genpareto.ppf(1 - (1 - upper_u) / (1 - self.b.detach().cpu().numpy()), loc=self.upper_mu, scale=self.upper_sigma, c=self.upper_xi)
+            upper_icdf = torch.from_numpy(upper_icdf).type(torch.FloatTensor).to(self.device)
+
+        icdf = torch.ones_like(u).to(self.device)
+        icdf[lower_idx] = lower_icdf
+        icdf[middle_idx] = middle_icdf
+        icdf[upper_idx] = upper_icdf
+        return icdf
+
+
+class CopulaLayer(nn.Module):
+    """
+    Construct invertible layer mapping marginal distributions to uniform[0, 1] by
+    decoupled 1D KDE on random sample of size n < N of data points.
+    """
+
+    def __init__(self, device, data, n=1000, a=0.05, b=0.95, debug=False):
+        super().__init__()
+        self.device = device
+        if isinstance(data, np.ndarray):
+            data = torch.from_numpy(data).type(torch.FloatTensor).to(device)
+        else:
+            data = data.to(device)
+        self.n, self.d = data.shape
+        self.n_anchors = min(n, self.n)
+        self.a = torch.FloatTensor([a]).to(device)      # lower quantile cutoff
+        self.b = torch.FloatTensor([b]).to(device)      # upper quantile cutoff
+        data = data.sort(dim=0).values
+        lower_idx = int(self.a * self.n)
+        upper_idx = int(self.b * self.n) - 1
+        anchor_idxs = torch.randint(low=lower_idx, high=upper_idx, size=(self.n_anchors,))
+        self.anchors = data[anchor_idxs].to(device)                 # sample for KDE
+        self.alpha = data[lower_idx].to(device)                     # lower data cutoff
+        self.beta = data[upper_idx].to(device)                      # upper data cutoff
+
+        # define a tail model for each dimension i=1,...,d
+        self.tails = []
+        tail_idxs = torch.cat((torch.arange(0, lower_idx), torch.arange(upper_idx, self.n - 1))).to(device)
+        for i in range(self.d):
+            self.tails.append(TorchGPD(device=self.device, data=data[tail_idxs, i], a=self.a, b=self.b, alpha=self.alpha[[i]], beta=self.beta[[i]]))
+
+        # echo xi parameters from tail model to command line
+        print(f"Lower xi: {[x.lower_xi for x in self.tails]}")
+        print(f"Upper xi: {[x.upper_xi for x in self.tails]}")
+
+        # define KDE mixture for central data
+        self.mixture = self.construct_mixture()
+
+    def __str__(self):
+        lower_tails = "".join([f"\n\t(mu, sigma, xi) = {(t.lower_mu, t.lower_sigma, t.lower_xi)}" for t in self.tails])
+        upper_tails = "".join([f"\n\t(mu, sigma, xi) = {(t.upper_mu, t.upper_sigma, t.upper_xi)}" for t in self.tails])
+        return "CopulaTransform\n" \
+               f"N, D: {self.n, self.d}\n" \
+               f"a, b: {self.a, self.b}\n" \
+               f"alpha, beta: {self.alpha, self.beta}\n" \
+               f"lower_tails:{lower_tails}\n" \
+               f"upper_tails:{upper_tails}"
+
+    __repr__ = __str__
+
+    def construct_mixture(self):
+        mixture = []
+        for i in range(self.d):
+            kde = sm.nonparametric.KDEUnivariate(self.anchors[:, i])
+            kde.fit()
+            mixture.append(kde)
+        return mixture
+
+    def forward(self, x, noise_level=None, logpx=None, reverse=False):
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x).type(torch.FloatTensor)
+        if isinstance(logpx, np.ndarray):
+            logpx = torch.from_numpy(logpx).type(torch.FloatTensor)
+
+        # work on one dimension i=1,...,d at a time (acceptably efficient for low D)
+        out, logpdf = [], []
+        for i in range(self.d):
+            x_i = x[..., i]         # assume features are in last dimension
+            if not reverse:
+                # given data x, produce quantile vector u; use CDF for transformation
+
+                # compute CDF i wrt each anchor, then rescale with Definition 11 from Wiese and fix tails
+                kde_support = torch.from_numpy(self.mixture[i].support).type(torch.FloatTensor)
+                kde_cdf = torch.from_numpy(self.mixture[i].cdf).type(torch.FloatTensor)
+                cdf_i = Interp1d()(kde_support, kde_cdf, x_i)
+                F_a = Interp1d()(kde_support, kde_cdf, self.alpha[[i]])
+                F_b = Interp1d()(kde_support, kde_cdf, self.beta[[i]])
+                cdf_i = self.a + (self.b - self.a) * (cdf_i - F_a) / (F_b - F_a)
+                cdf_i = torch.where(torch.logical_or(x_i < self.alpha[i], x_i > self.beta[i]),
+                                    self.tails[i].cdf(x_i),
+                                    cdf_i)
+                out.append(cdf_i.view(-1, 1))
+
+                # in either direction, change in probability density is given by sum_i log|f_i(x_i)|
+                # compute log prob in data space with x_i, then rescale with Definition 11 from Wiese and fix tails
+                logpdf_i = torch.from_numpy(self.mixture[i].evaluate(x_i.detach().cpu().numpy())).type(torch.FloatTensor)
+                pdf_i = torch.exp(logpdf_i)
+                pdf_i = (self.b - self.a) / (F_b - F_a) * pdf_i
+                pdf_i = torch.where(torch.logical_or(x_i < self.alpha[i], x_i > self.beta[i]),
+                                    torch.exp(self.tails[i].log_prob(x_i)),
+                                    pdf_i)
+                logpdf.append(-torch.log(pdf_i.view(-1, 1)))
+
+            else:
+                # given quantile u, produce data vector x; use inverse CDF for transformation
+
+                # compute inverseCDF i wrt each anchor, then rescale with Definition 11 from Wiese and fix tails
+                kde_support = torch.from_numpy(self.mixture[i].support).type(torch.FloatTensor)
+                kde_cdf = torch.from_numpy(self.mixture[i].cdf).type(torch.FloatTensor)
+                kde_icdf = torch.from_numpy(self.mixture[i].icdf).type(torch.FloatTensor)
+                ones_i = torch.linspace(0, 1, len(kde_icdf))
+                icdf_i = Interp1d()(ones_i, kde_icdf, x_i)
+
+                # handle null tail (a=0, b=1) logic
+                if self.a == 0:
+                    F_inv_a = self.alpha[i]
+                else:
+                    F_inv_a = Interp1d()(ones_i, kde_icdf, self.a)
+                if self.b == 1:
+                    F_inv_b = self.beta[i]
+                else:
+                    F_inv_b = Interp1d()(ones_i, kde_icdf, self.b)
+                icdf_i = self.alpha[i] + (self.beta[i] - self.alpha[i]) * (icdf_i - F_inv_a) / (F_inv_b - F_inv_a)
+                icdf_i = torch.where(torch.logical_or(x_i < self.a, x_i > self.b),
+                                     self.tails[i].icdf(x_i),
+                                     icdf_i)
+                out.append(icdf_i.view(-1, 1))
+
+                # in either direction, change in probability density is given by sum_i log|f_i(x_i)|
+                # compute log prob in data space with x_i, then rescale with Definition 11 from Wiese and fix tails
+                logpdf_i = torch.from_numpy(self.mixture[i].evaluate(x_i.detach().cpu().numpy())).type(torch.FloatTensor)
+                pdf_i = torch.exp(logpdf_i)
+                F_a = Interp1d()(kde_support, kde_cdf, self.alpha[[i]])
+                F_b = Interp1d()(kde_support, kde_cdf, self.beta[[i]])
+                pdf_i = (self.b - self.a) / (F_b - F_a) * pdf_i
+                pdf_i = torch.where(torch.logical_or(x_i < self.a, x_i > self.b),
+                                    torch.exp(self.tails[i].log_prob(icdf_i)),
+                                    pdf_i)
+                logpdf.append(torch.log(pdf_i.view(-1, 1)))
+
+        # sum all i log|f_i(x_i)| terms in logpdf list to compute Jacobian term for each point
+        # result is shape (x.shape[0],) which comprises change of variable term for each x evaluated
+        deltalogp = sum(logpdf)
+
+        # do not modify log probability under model during training, as this layer is not trainable!
+        # only modify log probability at inference time
+        if not self.training:
+            logpx = logpx + deltalogp
+        return torch.hstack(out), logpx
+
+
 class LogitLayer(nn.Module):
     """
     Map data from unit hypercube to Rn in forward direction with logit function.
@@ -97,10 +353,6 @@ class LogitLayer(nn.Module):
             if logpx is None:
                 return x
             return x, logpx - delta_logp
-
-
-class CopulaLayer(nn.Module):
-    pass    # TODO
 
 
 class CouplingLayer(nn.Module):
@@ -293,10 +545,9 @@ class VanillaFlow(BaseFlow):
         self.layers = nn.ModuleList(self.layers)
 
 
-class HTSFlow(BaseFlow):
+class TAFlow(BaseFlow):
     """
     Coupling layer-based normalizing flow model with Student's T latent space for heavy tailed modeling.
-    HTS abbreviates Heavy Tail Student.
     Inspired by Jaini et al. Tail Adaptive Flow.
     """
     def __init__(self, d, hidden_ds, lr, dof):
@@ -315,26 +566,24 @@ class HTSFlow(BaseFlow):
         return torch.from_numpy(samples).type(torch.FloatTensor).to(self.device)
 
 
-class HTCFlow(BaseFlow):
+class CMFlow(BaseFlow):
     """
     Coupling layer-based normalizing flow model with copula transform for heavy tail modeling.
-    HTC abbreviates Heavy Tail Copula.
     Inspired by Wiese et al. Copula & Marginal Flows.
     """
-    def __init__(self, d, hidden_ds, lr):
+    def __init__(self, d, hidden_ds, lr, data, a, b):
         super().__init__(d, hidden_ds, lr)
-        self.layers.append(CopulaLayer())    # map to unit hypercube
-        self.layers.append(LogitLayer())     # map to Rn before coupling layers
+        self.layers.append(CopulaLayer(self.device, data, a=a, b=b))    # map to unit hypercube
+        self.layers.append(LogitLayer())                                # map to Rn before coupling layers
         for hidden_d in hidden_ds:
             self.layers.append(CouplingLayer(self.d, hidden_d, swap=False))
             self.layers.append(CouplingLayer(self.d, hidden_d, swap=True))
         self.layers = nn.ModuleList(self.layers)
 
 
-class TDFlow(BaseFlow):
+class SoftFlow(BaseFlow):
     """
     Coupling layer-based normalizing flow model with conditional noise auxiliary variable for manifold modeling.
-    TD abbreviates Tail Dependence.
     Inspired by Kim et al. SoftFlow.
     """
     def __init__(self, d, hidden_ds, lr):
@@ -351,13 +600,12 @@ class COMETFlow(BaseFlow):
     Original coupling layer-based normalizing flow model with copula transform for heavy tail modeling and
     with conditional noise auxiliary variable for manifold modeling.
     """
-    def __init__(self, d, hidden_ds, lr):
+    def __init__(self, d, hidden_ds, lr, data, a, b):
         super().__init__(d, hidden_ds, lr)
         self.conditional_noise = True
-        self.layers.append(CopulaLayer())    # map to unit hypercube
-        self.layers.append(LogitLayer())     # map to Rn before coupling layers
+        self.layers.append(CopulaLayer(self.device, data, a=a, b=b))    # map to unit hypercube
+        self.layers.append(LogitLayer())                                # map to Rn before coupling layers
         for hidden_d in hidden_ds:
             self.layers.append(CouplingLayer(self.d, hidden_d, swap=False, conditional_noise=True))
             self.layers.append(CouplingLayer(self.d, hidden_d, swap=True, conditional_noise=True))
         self.layers = nn.ModuleList(self.layers)
-

@@ -450,7 +450,7 @@ def jointplot(data, title=None, color="grey"):
     plt.subplots_adjust(top=0.9)
 
 
-def pairplot(data, title=None, color="grey"):
+def pairplot(data, mins=None, maxs=None, title=None, color="grey"):
 
     rng = np.random.default_rng(seed=1)
     if data.shape[0] > 1000:
@@ -461,9 +461,16 @@ def pairplot(data, title=None, color="grey"):
         cols = range(10)
     data = data[:, cols]
 
-    sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
-                 height=2, aspect=1, diag_kind="hist", diag_kws={"color": color},
-                 plot_kws={"color": color, "s": 10, "alpha": 0.2})
+    g = sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
+                    height=2, aspect=1, diag_kind="hist", diag_kws={"color": color},
+                    plot_kws={"color": color, "s": 10, "alpha": 0.2})
+
+    if mins and maxs:
+        for i in range(data.shape[1]):
+            for j in range(data.shape[1]):
+                g.axes[i, j].set_xlim((mins[j], maxs[j]))
+                g.axes[i, j].set_ylim((mins[i], maxs[i]))
+
     if title:
         plt.suptitle(title)
     plt.subplots_adjust(top=0.9)

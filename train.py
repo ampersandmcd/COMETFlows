@@ -11,7 +11,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 import datasets
 import util
 from util import NumpyDataset, VisualCallback
-from models import VanillaFlow, HTSFlow, HTCFlow, TDFlow, COMETFlow
+from models import VanillaFlow, TAFlow, CMFlow, SoftFlow, COMETFlow
 
 
 if __name__ == "__main__":
@@ -19,15 +19,15 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser = pl.Trainer.add_argparse_args(parser)
     parser.add_argument("--name", default="default", type=str, help="Name of wandb run")
-    parser.add_argument("--model", default="vanilla", type=str, help="Model to train",
+    parser.add_argument("--model", default="cmf-05", type=str, help="Model to train",
                         choices=[
                             "vanilla",
-                            "hts-1", "hts-2", "hts-4",
-                            "htc-10", "htc-05", "htc-01",
-                            "td",
+                            "taf-16", "taf-32", "taf-64",
+                            "cmf-10", "cmf-05", "cmf-01",
+                            "softflow",
                             "comet-10", "comet-05", "comet-01"
                         ])
-    parser.add_argument("--data", default="artificial", type=str, help="Dataset to train on",
+    parser.add_argument("--data", default="gas", type=str, help="Dataset to train on",
                         choices=[
                             "artificial",
                             "bsds300",
@@ -50,31 +50,31 @@ if __name__ == "__main__":
     data = None
     if args.data == "artificial":
         data = datasets.ARTIFICIAL()
-        args.max_epochs = 1000  # small dataset
+        args.max_epochs = 500   # small dataset
     elif args.data == "bsds300":
         data = datasets.BSDS300()
-        args.max_epochs = 200   # large dataset
+        args.max_epochs = 100   # large dataset
     elif args.data == "cifar10":
         data = datasets.CIFAR10()
-        args.max_epochs = 1000  # small dataset
+        args.max_epochs = 500   # small dataset
     elif args.data == "climdex":
         data = datasets.CLIMDEX()
-        args.max_epochs = 1000  # small dataset
+        args.max_epochs = 500   # small dataset
     elif args.data == "gas":
         data = datasets.GAS()
-        args.max_epochs = 200   # large dataset
+        args.max_epochs = 100   # large dataset
     elif args.data == "hepmass":
         data = datasets.HEPMASS()
-        args.max_epochs = 200   # large dataset
+        args.max_epochs = 100   # large dataset
     elif args.data == "miniboone":
         data = datasets.MINIBOONE()
-        args.max_epochs = 1000  # small dataset
+        args.max_epochs = 500   # small dataset
     elif args.data == "mnist":
         data = datasets.MNIST()
-        args.max_epochs = 1000  # small dataset
+        args.max_epochs = 500   # small dataset
     elif args.data == "power":
         data = datasets.POWER()
-        args.max_epochs = 200   # large dataset
+        args.max_epochs = 100   # large dataset
 
     # configure dataloaders
     train_dataset = NumpyDataset(data.trn.x)
@@ -84,19 +84,24 @@ if __name__ == "__main__":
     test_dataset = NumpyDataset(data.tst.x)
     test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=4)
 
+    # configure model
     model = None
     d = data.trn.x.shape[1]
     if args.model == "vanilla":
         model = VanillaFlow(d, args.hidden_ds, args.lr)
-    elif args.model[:3] == "hts":
+    elif args.model[:3] == "taf":
         dof = int(args.model.split("-")[-1])
-        model = HTSFlow(d, args.hidden_ds, args.lr, dof)
-    elif args.model[:3] == "htc":
-        raise NotImplementedError()
-    elif args.model[:2] == "td":
-        model = TDFlow(d, args.hidden_ds, args.lr)
+        model = TAFlow(d, args.hidden_ds, args.lr, dof)
+    elif args.model[:3] == "cmf":
+        tail = float(args.model.split("-")[-1]) / 100
+        a, b = tail, 1 - tail
+        model = CMFlow(d, args.hidden_ds, args.lr, data.trn.x, a, b)
+    elif args.model[:2] == "softflow":
+        model = SoftFlow(d, args.hidden_ds, args.lr)
     elif args.model[:5] == "comet":
-        raise NotImplementedError()
+        tail = float(args.model.split("-")[-1]) / 100
+        a, b = tail, 1 - tail
+        model = COMETFlow(d, args.hidden_ds, args.lr, data.trn.x, a, b)
 
     # wandb logging
     wandb.init(project="comet-flows")
@@ -110,7 +115,7 @@ if __name__ == "__main__":
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.logger = wandb_logger
     trainer.callbacks.append(ModelCheckpoint(monitor="v_loss"))
-    mins, maxs = np.quantile(data.trn.x, 0.01, axis=0), np.quantile(data.trn.x, 0.99, axis=0)
+    mins, maxs = np.quantile(data.trn.x, 0.001, axis=0), np.quantile(data.trn.x, 0.999, axis=0)
     trainer.callbacks.append(VisualCallback(n_samples=args.n_samples, color=data.color,
                                             mins=mins, maxs=maxs,
                                             image_size=data.image_size, img_every_n_epochs=args.img_epochs))
