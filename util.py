@@ -505,6 +505,7 @@ class VisualCallback(Callback):
                 cols = range(10)
             data = data[:, cols]
             mins, maxs = self.mins[cols], self.maxs[cols]
+            data = np.clip(data, mins - 1, maxs + 1)    # avoid blowing up seaborn
             g = sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
                              height=2, aspect=1, diag_kind="hist", diag_kws={"color": self.color},
                              plot_kws={"color": self.color, "s": 10, "alpha": 0.2})
