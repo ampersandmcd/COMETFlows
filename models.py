@@ -142,19 +142,19 @@ class TorchGPD(nn.Module):
 
         # handle asymmetric tail logic: when a=0 (b=1, resp.), the left (right, resp.) tail will not matter
         # recall that torch.where will properly merge KDE with tails, so we can set points in middle to anything (zero)
-        middle_log_prob = torch.zeros((middle_data.shape[0])).to(self.device)
+        middle_log_prob = torch.zeros((middle_data.shape[0]))
         if self.a == 0:
-            lower_log_prob = torch.zeros((lower_data.shape[0])).type(torch.FloatTensor).to(self.device)
+            lower_log_prob = torch.zeros((lower_data.shape[0])).type(torch.FloatTensor)
         else:
             lower_log_prob = np.log(self.a.detach().cpu().numpy()) + genpareto.logpdf(self.alpha.detach().cpu().numpy() - lower_data, loc=-self.lower_mu, scale=self.lower_sigma, c=self.lower_xi)
-            lower_log_prob = torch.from_numpy(lower_log_prob).type(torch.FloatTensor).to(self.device)
+            lower_log_prob = torch.from_numpy(lower_log_prob).type(torch.FloatTensor)
         if self.b == 1:
-            upper_log_prob = torch.zeros((upper_data.shape[0])).type(torch.FloatTensor).to(self.device)
+            upper_log_prob = torch.zeros((upper_data.shape[0])).type(torch.FloatTensor)
         else:
             upper_log_prob = np.log(1 - self.b.detach().cpu().numpy()) + genpareto.logpdf(-self.beta.detach().cpu().numpy() + upper_data, loc=self.upper_mu, scale=self.upper_sigma, c=self.upper_xi)
-            upper_log_prob = torch.from_numpy(upper_log_prob).type(torch.FloatTensor).to(self.device)
+            upper_log_prob = torch.from_numpy(upper_log_prob).type(torch.FloatTensor)
 
-        log_prob = torch.zeros_like(x).to(self.device)
+        log_prob = torch.zeros_like(x)
         log_prob[lower_idx] = lower_log_prob
         log_prob[middle_idx] = middle_log_prob
         log_prob[upper_idx] = upper_log_prob
@@ -167,19 +167,19 @@ class TorchGPD(nn.Module):
 
         # handle asymmetric tail logic: when a=0 (b=1, resp.), the left (right, resp.) tail will not matter
         # recall that torch.where will properly merge KDE with each tail, so we can set irrelevant points here to zero
-        middle_icdf = torch.ones((middle_u.shape[0])).to(self.device)
+        middle_icdf = torch.ones((middle_u.shape[0]))
         if self.a == 0:
-            lower_icdf = torch.ones((lower_u.shape[0])).type(torch.FloatTensor).to(self.device)
+            lower_icdf = torch.ones((lower_u.shape[0])).type(torch.FloatTensor)
         else:
             lower_icdf = self.alpha.detach().cpu().numpy() - genpareto.ppf(1 - lower_u / self.a.detach().cpu().numpy(), c=self.lower_xi)
-            lower_icdf = torch.from_numpy(lower_icdf).type(torch.FloatTensor).to(self.device)
+            lower_icdf = torch.from_numpy(lower_icdf).type(torch.FloatTensor)
         if self.b == 1:
-            upper_icdf = torch.ones((upper_u.shape[0])).type(torch.FloatTensor).to(self.device)
+            upper_icdf = torch.ones((upper_u.shape[0])).type(torch.FloatTensor)
         else:
             upper_icdf = self.beta.detach().cpu().numpy() + genpareto.ppf(1 - (1 - upper_u) / (1 - self.b.detach().cpu().numpy()), loc=self.upper_mu, scale=self.upper_sigma, c=self.upper_xi)
-            upper_icdf = torch.from_numpy(upper_icdf).type(torch.FloatTensor).to(self.device)
+            upper_icdf = torch.from_numpy(upper_icdf).type(torch.FloatTensor)
 
-        icdf = torch.ones_like(u).to(self.device)
+        icdf = torch.ones_like(u)
         icdf[lower_idx] = lower_icdf
         icdf[middle_idx] = middle_icdf
         icdf[upper_idx] = upper_icdf
@@ -576,7 +576,7 @@ class CMFlow(BaseFlow):
     """
     def __init__(self, d, hidden_ds, lr, data, a, b):
         super().__init__(d, hidden_ds, lr)
-        self.layers.append(CopulaLayer(self.device, data, a=a, b=b))    # map to unit hypercube
+        self.layers.append(CopulaLayer(data, a=a, b=b))    # map to unit hypercube
         self.layers.append(LogitLayer())                                # map to Rn before coupling layers
         for hidden_d in hidden_ds:
             self.layers.append(CouplingLayer(self.d, hidden_d, swap=False))
@@ -606,7 +606,7 @@ class COMETFlow(BaseFlow):
     def __init__(self, d, hidden_ds, lr, data, a, b):
         super().__init__(d, hidden_ds, lr)
         self.conditional_noise = True
-        self.layers.append(CopulaLayer(self.device, data, a=a, b=b))    # map to unit hypercube
+        self.layers.append(CopulaLayer(data, a=a, b=b))    # map to unit hypercube
         self.layers.append(LogitLayer())                                # map to Rn before coupling layers
         for hidden_d in hidden_ds:
             self.layers.append(CouplingLayer(self.d, hidden_d, swap=False, conditional_noise=True))
