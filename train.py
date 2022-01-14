@@ -96,7 +96,7 @@ if __name__ == "__main__":
         tail = float(args.model.split("-")[-1]) / 100
         a, b = tail, 1 - tail
         model = CMFlow(d, args.hidden_ds, args.lr, data.trn.x, a, b)
-    elif args.model[:2] == "softflow":
+    elif args.model == "softflow":
         model = SoftFlow(d, args.hidden_ds, args.lr)
         args.max_epochs = args.max_epochs * 2   # conditional noise takes longer to converge
     elif args.model[:5] == "comet":
