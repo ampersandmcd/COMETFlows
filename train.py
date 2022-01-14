@@ -41,7 +41,8 @@ if __name__ == "__main__":
                         ])
     parser.add_argument("--batch_size", default=10_000, type=int, help="Batch size to train with")
     parser.add_argument("--hidden_ds", default=(64, 64, 64), type=tuple, help="Hidden dimensions in coupling NN")
-    parser.add_argument("--n_samples", default=10_000, type=tuple, help="Number of samples to generate")
+    parser.add_argument("--n_samples", default=1_000, type=tuple, help="Number of samples to generate")
+    parser.add_argument("--n_test_samples", default=10_000, type=tuple, help="Number of samples to generate at test time")
     parser.add_argument("--lr", default=1e-3, type=float, help="Learning rate")
     parser.add_argument("--img_epochs", default=10, type=int, help="How often to log images and pairplots")
     args = parser.parse_args()
@@ -165,7 +166,7 @@ if __name__ == "__main__":
 
 
     # save and log image of samples
-    x = model.sample(args.n_samples).detach().cpu().numpy()
+    x = model.sample(args.n_test_samples).detach().cpu().numpy()
     util.pairplot(x, title=None, color=data.color)
     wandb.log({"final_pairplot": wandb.Image(plt)})
     plt.close()

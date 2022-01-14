@@ -120,8 +120,8 @@ if __name__ == "__main__":
     wandb.log({"test_inf": sum(infs)})
 
     # save and log image of samples
-    run.config["n_samples"] = 10_000
-    x = model.sample(run.config["n_samples"]).detach().cpu().numpy()
+    run.config["n_test_samples"] = 10_000
+    x = model.sample(run.config["n_test_samples"]).detach().cpu().numpy()
     util.pairplot(x, title=None, color=data.color)
     wandb.log({"final_pairplot": wandb.Image(plt)})
     plt.close()
