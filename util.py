@@ -436,7 +436,7 @@ def load_data(name):
     return data, data_name
 
 
-def jointplot(data, title, color="grey"):
+def jointplot(data, title=None, color="grey"):
 
     rng = np.random.default_rng(seed=1)
     if data.shape[0] > 1000:
@@ -445,11 +445,12 @@ def jointplot(data, title, color="grey"):
 
     sns.jointplot(data=pd.DataFrame(data, columns=["x1", "x2"]),
                   x="x1", y="x2", color=color, s=10, alpha=0.2, height=4)
-    plt.suptitle(title)
+    if title:
+        plt.suptitle(title)
     plt.subplots_adjust(top=0.9)
 
 
-def pairplot(data, title, color="grey"):
+def pairplot(data, title=None, color="grey"):
 
     rng = np.random.default_rng(seed=1)
     if data.shape[0] > 1000:
@@ -457,13 +458,14 @@ def pairplot(data, title, color="grey"):
         data = data[rows]
     cols = range(data.shape[1])
     if data.shape[1] > 10:
-        cols = rng.choice(data.shape[1], size=10, replace=False)
-        data = data[:, cols]
+        cols = range(10)
+    data = data[:, cols]
 
     sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
                  height=2, aspect=1, diag_kind="hist", diag_kws={"color": color},
                  plot_kws={"color": color, "s": 10, "alpha": 0.2})
-    plt.suptitle(title)
+    if title:
+        plt.suptitle(title)
     plt.subplots_adjust(top=0.9)
 
 
@@ -491,9 +493,8 @@ class VisualCallback(Callback):
 
     def _log_pairplot(self, data):
         cols = range(data.shape[1])
-        if data.shape[1] > 8:
-            rng = np.random.default_rng(seed=1)
-            cols = rng.choice(data.shape[1], size=8, replace=False)
+        if data.shape[1] > 10:
+            cols = range(10)
         data = data[:, cols]
         mins, maxs = self.mins[cols], self.maxs[cols]
         g = sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),

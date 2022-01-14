@@ -204,16 +204,16 @@ class BaseFlow(pl.LightningModule):
             z, delta_logp = self.forward(x)
 
         # check nans and infs
-        nan_idx = torch.all(torch.logical_or(z != z, delta_logp != delta_logp), dim=1)
-        inf_idx = torch.all(torch.logical_not(torch.logical_and(torch.isfinite(z), torch.isfinite(delta_logp))), dim=1)
-        keep_idx = torch.logical_not(torch.logical_or(nan_idx, inf_idx))
-        z, delta_logp = z[keep_idx], delta_logp[keep_idx]
+        # nan_idx = torch.all(torch.logical_or(z != z, delta_logp != delta_logp), dim=1)
+        # inf_idx = torch.all(torch.logical_not(torch.logical_and(torch.isfinite(z), torch.isfinite(delta_logp))), dim=1)
+        # keep_idx = torch.logical_not(torch.logical_or(nan_idx, inf_idx))
+        # z, delta_logp = z[keep_idx], delta_logp[keep_idx]
 
         # compute and log mean nll
         nll = criterion(z, delta_logp) / z.shape[0]
         self.log("t_loss", nll, prog_bar=True)
-        self.log("t_nan", torch.sum(nan_idx), prog_bar=True)
-        self.log("t_inf", torch.sum(inf_idx), prog_bar=True)
+        # self.log("t_nan", torch.sum(nan_idx), prog_bar=True)
+        # self.log("t_inf", torch.sum(inf_idx), prog_bar=True)
         return nll
 
     def validation_step(self, batch, batch_idx):
@@ -231,26 +231,26 @@ class BaseFlow(pl.LightningModule):
             z, delta_logp = self.forward(x)
 
         # check nans and infs
-        nan_idx = torch.all(torch.logical_or(z != z, delta_logp != delta_logp), dim=1)
-        inf_idx = torch.all(torch.logical_not(torch.logical_and(torch.isfinite(z), torch.isfinite(delta_logp))), dim=1)
-        keep_idx = torch.logical_not(torch.logical_or(nan_idx, inf_idx))
-        z, delta_logp = z[keep_idx], delta_logp[keep_idx]
+        # nan_idx = torch.all(torch.logical_or(z != z, delta_logp != delta_logp), dim=1)
+        # inf_idx = torch.all(torch.logical_not(torch.logical_and(torch.isfinite(z), torch.isfinite(delta_logp))), dim=1)
+        # keep_idx = torch.logical_not(torch.logical_or(nan_idx, inf_idx))
+        # z, delta_logp = z[keep_idx], delta_logp[keep_idx]
 
         # compute and log mean nll
         nll = criterion(z, delta_logp) / z.shape[0]
         return {
             "loss": nll,
-            "n_nan": torch.sum(nan_idx).type(torch.FloatTensor),
-            "n_inf": torch.sum(inf_idx).type(torch.FloatTensor)
+            # "n_nan": torch.sum(nan_idx).type(torch.FloatTensor),
+            # "n_inf": torch.sum(inf_idx).type(torch.FloatTensor)
         }
 
     def validation_epoch_end(self, outputs):
         nll = torch.stack([o["loss"] for o in outputs]).mean()
         self.log("v_loss", nll, prog_bar=True)
-        n_nan = torch.stack([o["n_nan"] for o in outputs]).mean()
-        self.log("v_nan", n_nan, prog_bar=True)
-        n_inf = torch.stack([o["n_inf"] for o in outputs]).mean()
-        self.log("v_inf", n_inf, prog_bar=True)
+        # n_nan = torch.stack([o["n_nan"] for o in outputs]).mean()
+        # self.log("v_nan", n_nan, prog_bar=True)
+        # n_inf = torch.stack([o["n_inf"] for o in outputs]).mean()
+        # self.log("v_inf", n_inf, prog_bar=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)

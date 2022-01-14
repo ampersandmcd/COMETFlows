@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 import torch
 
@@ -7,6 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 import datasets
+import util
 from util import NumpyDataset, VisualCallback
 from models import VanillaFlow, HTSFlow, HTCFlow, TDFlow, COMETFlow
 
@@ -36,7 +38,7 @@ if __name__ == "__main__":
                             "mnist",
                             "power"
                         ])
-    parser.add_argument("--batch_size", default=4096, type=int, help="Batch size to train with")
+    parser.add_argument("--batch_size", default=10_000, type=int, help="Batch size to train with")
     parser.add_argument("--hidden_ds", default=(64, 64, 64), type=tuple, help="Hidden dimensions in coupling NN")
     parser.add_argument("--n_samples", default=1000, type=tuple, help="Number of samples to generate")
     parser.add_argument("--lr", default=1e-3, type=float, help="Learning rate")
@@ -47,37 +49,39 @@ if __name__ == "__main__":
     data = None
     if args.data == "artificial":
         data = datasets.ARTIFICIAL()
-        args.max_epochs = 1000
+        args.max_epochs = 1000  # small dataset
     elif args.data == "bsds300":
         data = datasets.BSDS300()
-        args.max_epochs = 200
+        args.max_epochs = 200   # large dataset
     elif args.data == "cifar10":
         data = datasets.CIFAR10()
-        args.max_epochs = 1000
+        args.max_epochs = 1000  # small dataset
     elif args.data == "climdex":
         data = datasets.CLIMDEX()
-        args.max_epochs = 1000
+        args.max_epochs = 1000  # small dataset
     elif args.data == "gas":
         data = datasets.GAS()
-        args.max_epochs = 200
+        args.max_epochs = 200   # large dataset
     elif args.data == "hepmass":
         data = datasets.HEPMASS()
-        args.max_epochs = 500
+        args.max_epochs = 200   # large dataset
     elif args.data == "miniboone":
         data = datasets.MINIBOONE()
-        args.max_epochs = 1000
+        args.max_epochs = 1000  # small dataset
     elif args.data == "mnist":
         data = datasets.MNIST()
-        args.max_epochs = 1000
+        args.max_epochs = 1000  # small dataset
     elif args.data == "power":
         data = datasets.POWER()
-        args.max_epochs = 200
+        args.max_epochs = 200   # large dataset
 
     # configure dataloaders
     train_dataset = NumpyDataset(data.trn.x)
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4)
     val_dataset = NumpyDataset(data.val.x)
     val_dataloader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=4)
+    test_dataset = NumpyDataset(data.tst.x)
+    test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, num_workers=4)
 
     model = None
     d = data.trn.x.shape[1]
@@ -110,4 +114,35 @@ if __name__ == "__main__":
                                             mins=mins, maxs=maxs,
                                             image_size=data.image_size, img_every_n_epochs=args.img_epochs))
 
-    trainer.fit(model, train_dataloader, val_dataloader)
+    # train
+    # trainer.fit(model, train_dataloader, val_dataloader)
+
+    # test
+    model.eval()
+    nlls = []
+    for batch in test_dataloader:
+        x = batch["x"].type(torch.FloatTensor).to(model.device)
+        criterion = model.get_criterion()
+
+        # perform forward pass
+        if model.conditional_noise:
+            std_min, std_max = 1e-3, 5e-3  # set to near-zero noise for validation
+            noise = (std_max - std_min) * torch.rand_like(x[:, 0]).view(-1, 1) + std_min
+            noisy_x = x + torch.randn_like(x) * noise
+            z, delta_logp = model.forward(noisy_x, noise_level=noise)
+        else:
+            z, delta_logp = model.forward(x)
+
+        # compute and save nll for mean computation
+        nll = criterion(z, delta_logp)
+        nlls.append(nll)
+
+    # save and log test nll
+    test_nll = sum(nlls) / len(test_dataset)
+    wandb.log({"test_nll": test_nll})
+
+    # save and log image of samples
+    x = model.sample(args.n_samples).detach().cpu().numpy()
+    util.pairplot(x, title=None, color=data.color)
+    wandb.log({"final_pairplot": wandb.Image(plt)})
+    plt.close()
