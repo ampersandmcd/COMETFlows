@@ -118,17 +118,17 @@ class TorchGPD(nn.Module):
 
         # handle asymmetric tail logic: when a=0 (b=1, resp.), the left (right, resp.) tail will not matter
         # recall that torch.where will properly merge KDE with tails, so we can set points in middle to anything (zero)
-        middle_cdf = torch.zeros((middle_data.shape[0]))
+        middle_cdf = torch.zeros((middle_data.shape[0])).to(x)
         if self.a == 0:
-            lower_cdf = torch.zeros((lower_data.shape[0])).type(torch.FloatTensor)
+            lower_cdf = torch.zeros((lower_data.shape[0])).to(x)
         else:
             lower_cdf = self.a.detach().cpu().numpy() * (1 - genpareto.cdf(self.alpha.detach().cpu().numpy() - lower_data, loc=-self.lower_mu, scale=self.lower_sigma, c=self.lower_xi))
-            lower_cdf = torch.from_numpy(lower_cdf).type(torch.FloatTensor)
+            lower_cdf = torch.from_numpy(lower_cdf).to(x)
         if self.b == 1:
-            upper_cdf = torch.zeros((upper_data.shape[0])).type(torch.FloatTensor)
+            upper_cdf = torch.zeros((upper_data.shape[0])).to(x)
         else:
             upper_cdf = self.b.detach().cpu().numpy() + (1 - self.b.detach().cpu().numpy()) * genpareto.cdf(-self.beta.detach().cpu().numpy() + upper_data, loc=self.upper_mu, scale=self.upper_sigma, c=self.upper_xi)
-            upper_cdf = torch.from_numpy(upper_cdf).type(torch.FloatTensor)
+            upper_cdf = torch.from_numpy(upper_cdf).to(x)
 
         cdf = torch.zeros_like(x)
         cdf[lower_idx] = lower_cdf
@@ -142,17 +142,17 @@ class TorchGPD(nn.Module):
 
         # handle asymmetric tail logic: when a=0 (b=1, resp.), the left (right, resp.) tail will not matter
         # recall that torch.where will properly merge KDE with tails, so we can set points in middle to anything (zero)
-        middle_log_prob = torch.zeros((middle_data.shape[0]))
+        middle_log_prob = torch.zeros((middle_data.shape[0])).to(x)
         if self.a == 0:
-            lower_log_prob = torch.zeros((lower_data.shape[0])).type(torch.FloatTensor)
+            lower_log_prob = torch.zeros((lower_data.shape[0])).to(x)
         else:
             lower_log_prob = np.log(self.a.detach().cpu().numpy()) + genpareto.logpdf(self.alpha.detach().cpu().numpy() - lower_data, loc=-self.lower_mu, scale=self.lower_sigma, c=self.lower_xi)
-            lower_log_prob = torch.from_numpy(lower_log_prob).type(torch.FloatTensor)
+            lower_log_prob = torch.from_numpy(lower_log_prob).to(x)
         if self.b == 1:
-            upper_log_prob = torch.zeros((upper_data.shape[0])).type(torch.FloatTensor)
+            upper_log_prob = torch.zeros((upper_data.shape[0])).to(x)
         else:
             upper_log_prob = np.log(1 - self.b.detach().cpu().numpy()) + genpareto.logpdf(-self.beta.detach().cpu().numpy() + upper_data, loc=self.upper_mu, scale=self.upper_sigma, c=self.upper_xi)
-            upper_log_prob = torch.from_numpy(upper_log_prob).type(torch.FloatTensor)
+            upper_log_prob = torch.from_numpy(upper_log_prob).to(x)
 
         log_prob = torch.zeros_like(x)
         log_prob[lower_idx] = lower_log_prob
@@ -167,17 +167,17 @@ class TorchGPD(nn.Module):
 
         # handle asymmetric tail logic: when a=0 (b=1, resp.), the left (right, resp.) tail will not matter
         # recall that torch.where will properly merge KDE with each tail, so we can set irrelevant points here to zero
-        middle_icdf = torch.ones((middle_u.shape[0]))
+        middle_icdf = torch.ones((middle_u.shape[0])).to(u)
         if self.a == 0:
-            lower_icdf = torch.ones((lower_u.shape[0])).type(torch.FloatTensor)
+            lower_icdf = torch.ones((lower_u.shape[0])).to(u)
         else:
             lower_icdf = self.alpha.detach().cpu().numpy() - genpareto.ppf(1 - lower_u / self.a.detach().cpu().numpy(), c=self.lower_xi)
-            lower_icdf = torch.from_numpy(lower_icdf).type(torch.FloatTensor)
+            lower_icdf = torch.from_numpy(lower_icdf).to(u)
         if self.b == 1:
-            upper_icdf = torch.ones((upper_u.shape[0])).type(torch.FloatTensor)
+            upper_icdf = torch.ones((upper_u.shape[0])).to(u)
         else:
             upper_icdf = self.beta.detach().cpu().numpy() + genpareto.ppf(1 - (1 - upper_u) / (1 - self.b.detach().cpu().numpy()), loc=self.upper_mu, scale=self.upper_sigma, c=self.upper_xi)
-            upper_icdf = torch.from_numpy(upper_icdf).type(torch.FloatTensor)
+            upper_icdf = torch.from_numpy(upper_icdf).to(u)
 
         icdf = torch.ones_like(u)
         icdf[lower_idx] = lower_icdf
@@ -245,10 +245,6 @@ class CopulaLayer(nn.Module):
         return mixture
 
     def forward(self, x, noise_level=None, logpx=None, reverse=False):
-        if isinstance(x, np.ndarray):
-            x = torch.from_numpy(x).type(torch.FloatTensor)
-        if isinstance(logpx, np.ndarray):
-            logpx = torch.from_numpy(logpx).type(torch.FloatTensor)
 
         # work on one dimension i=1,...,d at a time (acceptably efficient for low D)
         out, logpdf = [], []
@@ -258,8 +254,8 @@ class CopulaLayer(nn.Module):
                 # given data x, produce quantile vector u; use CDF for transformation
 
                 # compute CDF i wrt each anchor, then rescale with Definition 11 from Wiese and fix tails
-                kde_support = torch.from_numpy(self.mixture[i].support)
-                kde_cdf = torch.from_numpy(self.mixture[i].cdf)
+                kde_support = torch.from_numpy(self.mixture[i].support).to(x)
+                kde_cdf = torch.from_numpy(self.mixture[i].cdf).to(x)
                 cdf_i = Interp1d()(kde_support, kde_cdf, x_i)
                 F_a = Interp1d()(kde_support, kde_cdf, self.alpha[[i]])
                 F_b = Interp1d()(kde_support, kde_cdf, self.beta[[i]])
@@ -271,7 +267,7 @@ class CopulaLayer(nn.Module):
 
                 # in either direction, change in probability density is given by sum_i log|f_i(x_i)|
                 # compute log prob in data space with x_i, then rescale with Definition 11 from Wiese and fix tails
-                logpdf_i = torch.from_numpy(self.mixture[i].evaluate(x_i.detach().cpu().numpy())).type(torch.FloatTensor)
+                logpdf_i = torch.from_numpy(self.mixture[i].evaluate(x_i.detach().cpu().numpy())).to(x)
                 pdf_i = torch.exp(logpdf_i)
                 pdf_i = (self.b - self.a) / (F_b - F_a) * pdf_i
                 pdf_i = torch.where(torch.logical_or(x_i < self.alpha[i], x_i > self.beta[i]),
@@ -283,10 +279,10 @@ class CopulaLayer(nn.Module):
                 # given quantile u, produce data vector x; use inverse CDF for transformation
 
                 # compute inverseCDF i wrt each anchor, then rescale with Definition 11 from Wiese and fix tails
-                kde_support = torch.from_numpy(self.mixture[i].support)
-                kde_cdf = torch.from_numpy(self.mixture[i].cdf)
-                kde_icdf = torch.from_numpy(self.mixture[i].icdf)
-                ones_i = torch.linspace(0, 1, len(kde_icdf))
+                kde_support = torch.from_numpy(self.mixture[i].support).to(x)
+                kde_cdf = torch.from_numpy(self.mixture[i].cdf).to(x)
+                kde_icdf = torch.from_numpy(self.mixture[i].icdf).to(x)
+                ones_i = torch.linspace(0, 1, len(kde_icdf)).to(x)
                 icdf_i = Interp1d()(ones_i, kde_icdf, x_i)
 
                 # handle null tail (a=0, b=1) logic
@@ -306,7 +302,7 @@ class CopulaLayer(nn.Module):
 
                 # in either direction, change in probability density is given by sum_i log|f_i(x_i)|
                 # compute log prob in data space with x_i, then rescale with Definition 11 from Wiese and fix tails
-                logpdf_i = torch.from_numpy(self.mixture[i].evaluate(x_i.detach().cpu().numpy())).type(torch.FloatTensor)
+                logpdf_i = torch.from_numpy(self.mixture[i].evaluate(x_i.detach().cpu().numpy())).to(x)
                 pdf_i = torch.exp(logpdf_i)
                 F_a = Interp1d()(kde_support, kde_cdf, self.alpha[[i]])
                 F_b = Interp1d()(kde_support, kde_cdf, self.beta[[i]])
@@ -459,16 +455,16 @@ class BaseFlow(pl.LightningModule):
             z, delta_logp = self.forward(x)
 
         # check nans and infs
-        # nan_idx = torch.all(torch.logical_or(z != z, delta_logp != delta_logp), dim=1)
-        # inf_idx = torch.all(torch.logical_not(torch.logical_and(torch.isfinite(z), torch.isfinite(delta_logp))), dim=1)
-        # keep_idx = torch.logical_not(torch.logical_or(nan_idx, inf_idx))
-        # z, delta_logp = z[keep_idx], delta_logp[keep_idx]
+        nan_idx = torch.all(torch.logical_or(z != z, delta_logp != delta_logp), dim=1)
+        inf_idx = torch.all(torch.logical_not(torch.logical_and(torch.isfinite(z), torch.isfinite(delta_logp))), dim=1)
+        keep_idx = torch.logical_not(torch.logical_or(nan_idx, inf_idx))
+        z, delta_logp = z[keep_idx], delta_logp[keep_idx]
 
         # compute and log mean nll
         nll = criterion(z, delta_logp) / z.shape[0]
         self.log("t_loss", nll, prog_bar=True)
-        # self.log("t_nan", torch.sum(nan_idx), prog_bar=True)
-        # self.log("t_inf", torch.sum(inf_idx), prog_bar=True)
+        self.log("t_nan", torch.sum(nan_idx), prog_bar=True)
+        self.log("t_inf", torch.sum(inf_idx), prog_bar=True)
         return nll
 
     def validation_step(self, batch, batch_idx):
@@ -486,26 +482,26 @@ class BaseFlow(pl.LightningModule):
             z, delta_logp = self.forward(x)
 
         # check nans and infs
-        # nan_idx = torch.all(torch.logical_or(z != z, delta_logp != delta_logp), dim=1)
-        # inf_idx = torch.all(torch.logical_not(torch.logical_and(torch.isfinite(z), torch.isfinite(delta_logp))), dim=1)
-        # keep_idx = torch.logical_not(torch.logical_or(nan_idx, inf_idx))
-        # z, delta_logp = z[keep_idx], delta_logp[keep_idx]
+        nan_idx = torch.all(torch.logical_or(z != z, delta_logp != delta_logp), dim=1)
+        inf_idx = torch.all(torch.logical_not(torch.logical_and(torch.isfinite(z), torch.isfinite(delta_logp))), dim=1)
+        keep_idx = torch.logical_not(torch.logical_or(nan_idx, inf_idx))
+        z, delta_logp = z[keep_idx], delta_logp[keep_idx]
 
         # compute and log mean nll
         nll = criterion(z, delta_logp) / z.shape[0]
         return {
             "loss": nll,
-            # "n_nan": torch.sum(nan_idx).type(torch.FloatTensor),
-            # "n_inf": torch.sum(inf_idx).type(torch.FloatTensor)
+            "n_nan": torch.sum(nan_idx).type(torch.FloatTensor),
+            "n_inf": torch.sum(inf_idx).type(torch.FloatTensor)
         }
 
     def validation_epoch_end(self, outputs):
         nll = torch.stack([o["loss"] for o in outputs]).mean()
         self.log("v_loss", nll, prog_bar=True)
-        # n_nan = torch.stack([o["n_nan"] for o in outputs]).mean()
-        # self.log("v_nan", n_nan, prog_bar=True)
-        # n_inf = torch.stack([o["n_inf"] for o in outputs]).mean()
-        # self.log("v_inf", n_inf, prog_bar=True)
+        n_nan = torch.stack([o["n_nan"] for o in outputs]).mean()
+        self.log("v_nan", n_nan, prog_bar=True)
+        n_inf = torch.stack([o["n_inf"] for o in outputs]).mean()
+        self.log("v_inf", n_inf, prog_bar=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)

@@ -39,7 +39,7 @@ if __name__ == "__main__":
                             "mnist",
                             "power"
                         ])
-    parser.add_argument("--batch_size", default=10_000, type=int, help="Batch size to train with")
+    parser.add_argument("--batch_size", default=100_000, type=int, help="Batch size to train with")
     parser.add_argument("--hidden_ds", default=(64, 64, 64), type=tuple, help="Hidden dimensions in coupling NN")
     parser.add_argument("--n_samples", default=1000, type=tuple, help="Number of samples to generate")
     parser.add_argument("--lr", default=1e-3, type=float, help="Learning rate")
@@ -125,7 +125,7 @@ if __name__ == "__main__":
 
     # test
     model.eval()
-    nlls = []
+    nlls, nans, infs = [], [], []
     for batch in test_dataloader:
         x = batch["x"].type(torch.FloatTensor).to(model.device)
         criterion = model.get_criterion()
@@ -139,13 +139,28 @@ if __name__ == "__main__":
         else:
             z, delta_logp = model.forward(x)
 
+        # check nans and infs
+        nan_idx = torch.all(torch.logical_or(z != z, delta_logp != delta_logp), dim=1)
+        inf_idx = torch.all(torch.logical_not(torch.logical_and(torch.isfinite(z), torch.isfinite(delta_logp))), dim=1)
+        keep_idx = torch.logical_not(torch.logical_or(nan_idx, inf_idx))
+        z, delta_logp = z[keep_idx], delta_logp[keep_idx]
+
         # compute and save nll for mean computation
         nll = criterion(z, delta_logp)
         nlls.append(nll)
 
+        # save nan/inf count for later logging
+        nans.append(sum(nan_idx))
+        infs.append(sum(inf_idx))
+
     # save and log test nll
     test_nll = sum(nlls) / len(test_dataset)
     wandb.log({"test_nll": test_nll})
+
+    # save and log total number of nan/inf
+    wandb.log({"test_nan": sum(nans)})
+    wandb.log({"test_inf": sum(infs)})
+
 
     # save and log image of samples
     x = model.sample(args.n_samples).detach().cpu().numpy()
