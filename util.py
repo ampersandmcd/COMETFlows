@@ -473,7 +473,7 @@ def pairplot(data, mins=None, maxs=None, title=None, color="grey"):
 
     if title:
         plt.suptitle(title)
-    plt.subplots_adjust(top=0.9)
+        plt.subplots_adjust(top=0.9)
 
 
 class NumpyDataset(Dataset):

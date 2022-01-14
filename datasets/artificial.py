@@ -27,7 +27,7 @@ class ARTIFICIAL:
 def load_data_normalised():
 
     # generate four subsets of data, then merge
-    n = 250_000     # actual n is 4x this number
+    n = 250_000
     p = 0.05        # probability of belonging to tail
     rng = np.random.default_rng(seed=1)
 

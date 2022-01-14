@@ -186,7 +186,7 @@ class TorchGPD(nn.Module):
         return icdf
 
 
-class CopulaLayer(nn.Module):
+class MarginalLayer(nn.Module):
     """
     Construct invertible layer mapping marginal distributions to uniform[0, 1] by
     decoupled 1D KDE on random sample of size n < N of data points.
@@ -572,7 +572,7 @@ class CMFlow(BaseFlow):
     """
     def __init__(self, d, hidden_ds, lr, data, a, b):
         super().__init__(d, hidden_ds, lr)
-        self.layers.append(CopulaLayer(data, a=a, b=b))    # map to unit hypercube
+        self.layers.append(MarginalLayer(data, a=a, b=b))    # map to unit hypercube
         self.layers.append(LogitLayer())                                # map to Rn before coupling layers
         for hidden_d in hidden_ds:
             self.layers.append(CouplingLayer(self.d, hidden_d, swap=False))
@@ -602,7 +602,7 @@ class COMETFlow(BaseFlow):
     def __init__(self, d, hidden_ds, lr, data, a, b):
         super().__init__(d, hidden_ds, lr)
         self.conditional_noise = True
-        self.layers.append(CopulaLayer(data, a=a, b=b))    # map to unit hypercube
+        self.layers.append(MarginalLayer(data, a=a, b=b))    # map to unit hypercube
         self.layers.append(LogitLayer())                                # map to Rn before coupling layers
         for hidden_d in hidden_ds:
             self.layers.append(CouplingLayer(self.d, hidden_d, swap=False, conditional_noise=True))
