@@ -19,7 +19,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser = pl.Trainer.add_argparse_args(parser)
     parser.add_argument("--name", default="default", type=str, help="Name of wandb run")
-    parser.add_argument("--model", default="cmf-05", type=str, help="Model to train",
+    parser.add_argument("--model", default="vanilla", type=str, help="Model to train",
                         choices=[
                             "vanilla",
                             "taf-16", "taf-32", "taf-64",
