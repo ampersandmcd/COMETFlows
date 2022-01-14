@@ -91,7 +91,7 @@ class TorchGPD(nn.Module):
             self.lower_xi, self.lower_mu, self.lower_sigma = genpareto.fit(self.alpha.detach().cpu().numpy() - lower_data)
             self.lower_xi = np.clip(self.lower_xi, 0, 1)    # clip to well-behaved xi range
         else:
-            self.lower_xi, self.lower_mu, self.lower_sigma = None, None, None
+            self.lower_xi, self.lower_mu, self.lower_sigma = 0, 0, 1
 
         # fit parameters of upper tail
         upper_data = data[data > self.beta].detach().cpu().numpy()
@@ -99,7 +99,7 @@ class TorchGPD(nn.Module):
             self.upper_xi, self.upper_mu, self.upper_sigma = genpareto.fit(-self.beta.detach().cpu().numpy() + upper_data)
             self.upper_xi = np.clip(self.upper_xi, 0, 1)    # clip to well-behaved xi range
         else:
-            self.upper_xi, self.upper_mu, self.upper_sigma = None, None, None
+            self.upper_xi, self.upper_mu, self.upper_sigma = 0, 0, 1
 
     def split_data(self, x, quantile=False):
 
