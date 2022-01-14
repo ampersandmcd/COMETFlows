@@ -492,37 +492,43 @@ class VisualCallback(Callback):
         self.img_every_n_epochs = img_every_n_epochs
 
     def _log_pairplot(self, data):
-        cols = range(data.shape[1])
-        if data.shape[1] > 10:
-            cols = range(10)
-        data = data[:, cols]
-        mins, maxs = self.mins[cols], self.maxs[cols]
-        g = sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
-                         height=2, aspect=1, diag_kind="hist", diag_kws={"color": self.color},
-                         plot_kws={"color": self.color, "s": 10, "alpha": 0.2})
-        for i in range(data.shape[1]):
-            for j in range(data.shape[1]):
-                g.axes[i, j].set_xlim((mins[j], maxs[j]))
-                g.axes[i, j].set_ylim((mins[i], maxs[i]))
-        wandb.log({"sample_pairplots": wandb.Image(plt)})
-        plt.close()
-        
-    def _log_images(self, data):
-        fig, ax = plt.subplots(2, 5)
-        ax = ax.ravel()
-        if data.shape[1] == 63:
-            data = np.hstack((data, data[:, [-1]]))  # bsds300, need to add one pixel
-        for i in range(10):
-            if len(self.image_size) > 2:
-                img = data[i].reshape(self.image_size).transpose(1, 2, 0)
-            else:
-                img = data[i].reshape(self.image_size)
-            ax[i].imshow(img, interpolation="none")
-            ax[i].set_title(str(i))
-            ax[i].axis("off")
+        try:
+            cols = range(data.shape[1])
+            if data.shape[1] > 10:
+                cols = range(10)
+            data = data[:, cols]
+            mins, maxs = self.mins[cols], self.maxs[cols]
+            g = sns.pairplot(data=pd.DataFrame(data, columns=[f"x{col}" for col in list(cols)]),
+                             height=2, aspect=1, diag_kind="hist", diag_kws={"color": self.color},
+                             plot_kws={"color": self.color, "s": 10, "alpha": 0.2})
+            for i in range(data.shape[1]):
+                for j in range(data.shape[1]):
+                    g.axes[i, j].set_xlim((mins[j], maxs[j]))
+                    g.axes[i, j].set_ylim((mins[i], maxs[i]))
+            wandb.log({"sample_pairplots": wandb.Image(plt)})
+            plt.close()
+        except Exception as e:
+            print(f"_log_pairplot raised {e}")
 
-        wandb.log({"sample_images": plt})
-        plt.close()
+    def _log_images(self, data):
+        try:
+            fig, ax = plt.subplots(2, 5)
+            ax = ax.ravel()
+            if data.shape[1] == 63:
+                data = np.hstack((data, data[:, [-1]]))  # bsds300, need to add one pixel
+            for i in range(10):
+                if len(self.image_size) > 2:
+                    img = data[i].reshape(self.image_size).transpose(1, 2, 0)
+                else:
+                    img = data[i].reshape(self.image_size)
+                ax[i].imshow(img, interpolation="none")
+                ax[i].set_title(str(i))
+                ax[i].axis("off")
+
+            wandb.log({"sample_images": plt})
+            plt.close()
+        except Exception as e:
+            print(f"_log_pairplot raised {e}")
 
     def on_epoch_end(self, trainer, pl_module):
         if pl_module.current_epoch % self.img_every_n_epochs != 0:
