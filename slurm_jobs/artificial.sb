@@ -1,0 +1,35 @@
+#!/bin/bash --login
+########## SBATCH Lines for Resource Request ##########
+ 
+#SBATCH --time=12:00:00               # limit of wall clock time - how long the job will run (same as -t)
+#SBATCH --nodes=1                   # number of different nodes - could be an exact number or a range of nodes (same as -N)
+#SBATCH --ntasks=11                    # number of tasks - how many tasks (nodes) that you require (same as -n)
+#SBATCH --cpus-per-task=1             # number of CPUs (or cores) per task (same as -c)
+#SBATCH --mem-per-cpu=12G              # memory required per allocated CPU (or core) - amount of memory (in bytes)
+#SBATCH --job-name artificial        # you can give your job a name for easier identification (same as -J)
+#SBATCH --gpus=k80:1
+
+########## Command Lines to Run ##########
+
+cd ~/Code/COMETFlows
+conda activate
+
+WANDB_MODE=online
+
+python train.py --gpus=1 --data=artificial --name=artificial-vanilla > artificial-vanilla.out 2>&1 &
+
+python train.py --gpus=1 --data=artificial --model=taf-16 --name=artificial-taf-16 > artificial-taf-16.out 2>&1 &
+python train.py --gpus=1 --data=artificial --model=taf-32 --name=artificial-taf-32 > artificial-taf-32.out 2>&1 &
+python train.py --gpus=1 --data=artificial --model=taf-64 --name=artificial-taf-64 > artificial-taf-64.out 2>&1 &
+
+python train.py --gpus=1 --data=artificial --model=softflow --name=artificial-softflow > artificial-softflow.out 2>&1 &
+
+python train.py --gpus=1 --data=artificial --model=cmf-10 --name=artificial-cmf-10 > artificial-cmf-10.out 2>&1 &
+python train.py --gpus=1 --data=artificial --model=cmf-05 --name=artificial-cmf-05 > artificial-cmf-05.out 2>&1 &
+python train.py --gpus=1 --data=artificial --model=cmf-01 --name=artificial-cmf-01 > artificial-cmf-01.out 2>&1 &
+
+python train.py --gpus=1 --data=artificial --model=cmf-10 --name=artificial-comet-10 > artificial-comet-10.out 2>&1 &
+python train.py --gpus=1 --data=artificial --model=cmf-05 --name=artificial-comet-05 > artificial-comet-05.out 2>&1 &
+python train.py --gpus=1 --data=artificial --model=cmf-01 --name=artificial-comet-01 > artificial-comet-01.out 2>&1 &
+
+scontrol show job $SLURM_JOB_ID

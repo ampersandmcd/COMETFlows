@@ -1,0 +1,35 @@
+#!/bin/bash --login
+########## SBATCH Lines for Resource Request ##########
+ 
+#SBATCH --time=12:00:00               # limit of wall clock time - how long the job will run (same as -t)
+#SBATCH --nodes=1                   # number of different nodes - could be an exact number or a range of nodes (same as -N)
+#SBATCH --ntasks=11                    # number of tasks - how many tasks (nodes) that you require (same as -n)
+#SBATCH --cpus-per-task=1             # number of CPUs (or cores) per task (same as -c)
+#SBATCH --mem-per-cpu=12G              # memory required per allocated CPU (or core) - amount of memory (in bytes)
+#SBATCH --job-name gas        # you can give your job a name for easier identification (same as -J)
+#SBATCH --gpus=k80:1
+
+########## Command Lines to Run ##########
+
+cd ~/Code/COMETFlows
+conda activate
+
+WANDB_MODE=online
+
+python train.py --gpus=1 --data=gas --name=gas-vanilla > gas-vanilla.out 2>&1 &
+
+python train.py --gpus=1 --data=gas --model=taf-16 --name=gas-taf-16 > gas-taf-16.out 2>&1 &
+python train.py --gpus=1 --data=gas --model=taf-32 --name=gas-taf-32 > gas-taf-32.out 2>&1 &
+python train.py --gpus=1 --data=gas --model=taf-64 --name=gas-taf-64 > gas-taf-64.out 2>&1 &
+
+python train.py --gpus=1 --data=gas --model=softflow --name=gas-softflow > gas-softflow.out 2>&1 &
+
+python train.py --gpus=1 --data=gas --model=cmf-10 --name=gas-cmf-10 > gas-cmf-10.out 2>&1 &
+python train.py --gpus=1 --data=gas --model=cmf-05 --name=gas-cmf-05 > gas-cmf-05.out 2>&1 &
+python train.py --gpus=1 --data=gas --model=cmf-01 --name=gas-cmf-01 > gas-cmf-01.out 2>&1 &
+
+python train.py --gpus=1 --data=gas --model=cmf-10 --name=gas-comet-10 > gas-comet-10.out 2>&1 &
+python train.py --gpus=1 --data=gas --model=cmf-05 --name=gas-comet-05 > gas-comet-05.out 2>&1 &
+python train.py --gpus=1 --data=gas --model=cmf-01 --name=gas-comet-01 > gas-comet-01.out 2>&1 &
+
+scontrol show job $SLURM_JOB_ID
