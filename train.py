@@ -1,6 +1,7 @@
+import torch
+import numpy as np
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
-import torch
 
 import wandb
 from argparse import ArgumentParser
@@ -109,7 +110,7 @@ if __name__ == "__main__":
     trainer = pl.Trainer.from_argparse_args(args)
     trainer.logger = wandb_logger
     trainer.callbacks.append(ModelCheckpoint(monitor="v_loss"))
-    mins, maxs = data.trn.x.min(axis=0), data.trn.x.max(axis=0)
+    mins, maxs = np.quantile(data.trn.x, 0.01, axis=0), np.quantile(data.trn.x, 0.99, axis=0)
     trainer.callbacks.append(VisualCallback(n_samples=args.n_samples, color=data.color,
                                             mins=mins, maxs=maxs,
                                             image_size=data.image_size, img_every_n_epochs=args.img_epochs))
