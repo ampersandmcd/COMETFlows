@@ -30,59 +30,68 @@ def explore_all():
 
 def explore_artificial():
     artificial = datasets.ARTIFICIAL()
-    util.pairplot(artificial.trn.x, title="Artificial Train", color=artificial.color)
+    mins, maxs = np.quantile(artificial.trn.x, 0.001, axis=0), np.quantile(artificial.trn.x, 0.999, axis=0)
+    util.pairplot(artificial.trn.x, mins=mins, maxs=maxs, color=artificial.color)
     plt.show()
 
 
 def explore_bsds300():
     bsds300 = datasets.BSDS300()
     bsds300.trn.x = np.hstack((bsds300.trn.x, bsds300.trn.x[:, [-1]]))  # bsds300, need to add one pixel
-    util.pairplot(bsds300.trn.x, title="BSDS300 Train", color=bsds300.color)
+    mins, maxs = np.quantile(bsds300.trn.x, 0.001, axis=0), np.quantile(bsds300.trn.x, 0.999, axis=0)
+    util.pairplot(bsds300.trn.x, mins=mins, maxs=maxs, color=bsds300.color)
     util.imageplot(bsds300.trn.x[:15], bsds300.image_size, layout=(3, 5))
     plt.show()
 
 
 def explore_cifar10():
     cifar10 = datasets.CIFAR10()
-    util.pairplot(cifar10.trn.x, title="CIFAR10 Train", color=cifar10.color)
+    mins, maxs = np.quantile(cifar10.trn.x, 0.001, axis=0), np.quantile(cifar10.trn.x, 0.999, axis=0)
+    util.pairplot(cifar10.trn.x, mins=mins, maxs=maxs, color=cifar10.color)
     util.imageplot(cifar10.trn.x[:15], cifar10.image_size, layout=(3, 5))
     plt.show()
 
 
 def explore_climdex():
     climdex = datasets.CLIMDEX()
-    util.pairplot(climdex.trn.x, title="CLIMDEX Train", color=climdex.color)
+    mins, maxs = np.quantile(climdex.trn.x, 0.001, axis=0), np.quantile(climdex.trn.x, 0.999, axis=0)
+    util.pairplot(climdex.trn.x, mins=mins, maxs=maxs, color=climdex.color)
     plt.show()
 
 
 def explore_gas():
     gas = datasets.GAS()
-    util.pairplot(gas.trn.x, title="GAS Train", color=gas.color)
+    mins, maxs = np.quantile(gas.trn.x, 0.001, axis=0), np.quantile(gas.trn.x, 0.999, axis=0)
+    util.pairplot(gas.trn.x, mins=mins, maxs=maxs, color=gas.color)
     plt.show()
 
 
 def explore_hepmass():
     hepmass = datasets.HEPMASS()
-    util.pairplot(hepmass.trn.x, title="HEPMASS Train", color=hepmass.color)
+    mins, maxs = np.quantile(hepmass.trn.x, 0.001, axis=0), np.quantile(hepmass.trn.x, 0.999, axis=0)
+    util.pairplot(hepmass.trn.x, mins=mins, maxs=maxs, color=hepmass.color)
     plt.show()
 
 
 def explore_miniboone():
     miniboone = datasets.MINIBOONE()
-    util.pairplot(miniboone.trn.x, title="MINIBOONE Train", color=miniboone.color)
+    mins, maxs = np.quantile(miniboone.trn.x, 0.001, axis=0), np.quantile(miniboone.trn.x, 0.999, axis=0)
+    util.pairplot(miniboone.trn.x, mins=mins, maxs=maxs, color=miniboone.color)
     plt.show()
 
 
 def explore_mnist():
     mnist = datasets.MNIST()
-    util.pairplot(mnist.trn.x, title="MNIST Train", color=mnist.color)
+    mins, maxs = np.quantile(mnist.trn.x, 0.001, axis=0), np.quantile(mnist.trn.x, 0.999, axis=0)
+    util.pairplot(mnist.trn.x, mins=mins, maxs=maxs, color=mnist.color)
     util.imageplot(mnist.trn.x[:15], mnist.image_size, layout=(3, 5))
     plt.show()
 
 
 def explore_power():
     power = datasets.POWER()
-    util.pairplot(power.trn.x, title="POWER Train", color=power.color)
+    mins, maxs = np.quantile(power.trn.x, 0.001, axis=0), np.quantile(power.trn.x, 0.999, axis=0)
+    util.pairplot(power.trn.x, mins=mins, maxs=maxs, color=power.color)
     plt.show()
 
 

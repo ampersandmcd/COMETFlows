@@ -465,7 +465,7 @@ def pairplot(data, mins=None, maxs=None, title=None, color="grey"):
                     height=2, aspect=1, diag_kind="hist", diag_kws={"color": color},
                     plot_kws={"color": color, "s": 10, "alpha": 0.2})
 
-    if mins and maxs:
+    if mins is not None and maxs is not None:
         for i in range(data.shape[1]):
             for j in range(data.shape[1]):
                 g.axes[i, j].set_xlim((mins[j], maxs[j]))
