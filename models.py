@@ -255,8 +255,8 @@ class CopulaLayer(nn.Module):
                 # given data x, produce quantile vector u; use CDF for transformation
 
                 # compute CDF i wrt each anchor, then rescale with Definition 11 from Wiese and fix tails
-                kde_support = torch.from_numpy(self.mixture[i].support).type(torch.FloatTensor)
-                kde_cdf = torch.from_numpy(self.mixture[i].cdf).type(torch.FloatTensor)
+                kde_support = torch.from_numpy(self.mixture[i].support).to(x)
+                kde_cdf = torch.from_numpy(self.mixture[i].cdf).to(x)
                 cdf_i = Interp1d()(kde_support, kde_cdf, x_i)
                 F_a = Interp1d()(kde_support, kde_cdf, self.alpha[[i]])
                 F_b = Interp1d()(kde_support, kde_cdf, self.beta[[i]])
@@ -280,10 +280,10 @@ class CopulaLayer(nn.Module):
                 # given quantile u, produce data vector x; use inverse CDF for transformation
 
                 # compute inverseCDF i wrt each anchor, then rescale with Definition 11 from Wiese and fix tails
-                kde_support = torch.from_numpy(self.mixture[i].support).type(torch.FloatTensor)
-                kde_cdf = torch.from_numpy(self.mixture[i].cdf).type(torch.FloatTensor)
-                kde_icdf = torch.from_numpy(self.mixture[i].icdf).type(torch.FloatTensor)
-                ones_i = torch.linspace(0, 1, len(kde_icdf))
+                kde_support = torch.from_numpy(self.mixture[i].support).to(x)
+                kde_cdf = torch.from_numpy(self.mixture[i].cdf).to(x)
+                kde_icdf = torch.from_numpy(self.mixture[i].icdf).to(x)
+                ones_i = torch.linspace(0, 1, len(kde_icdf)).to(x)
                 icdf_i = Interp1d()(ones_i, kde_icdf, x_i)
 
                 # handle null tail (a=0, b=1) logic
