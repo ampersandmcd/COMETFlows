@@ -39,7 +39,7 @@ if __name__ == "__main__":
                             "mnist",
                             "power"
                         ])
-    parser.add_argument("--batch_size", default=100_000, type=int, help="Batch size to train with")
+    parser.add_argument("--batch_size", default=10_000, type=int, help="Batch size to train with")
     parser.add_argument("--hidden_ds", default=(64, 64, 64), type=tuple, help="Hidden dimensions in coupling NN")
     parser.add_argument("--n_samples", default=1000, type=tuple, help="Number of samples to generate")
     parser.add_argument("--lr", default=1e-3, type=float, help="Learning rate")
