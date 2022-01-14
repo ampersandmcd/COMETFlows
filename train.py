@@ -98,10 +98,12 @@ if __name__ == "__main__":
         model = CMFlow(d, args.hidden_ds, args.lr, data.trn.x, a, b)
     elif args.model[:2] == "softflow":
         model = SoftFlow(d, args.hidden_ds, args.lr)
+        args.max_epochs = args.max_epochs * 2   # conditional noise takes longer to converge
     elif args.model[:5] == "comet":
         tail = float(args.model.split("-")[-1]) / 100
         a, b = tail, 1 - tail
         model = COMETFlow(d, args.hidden_ds, args.lr, data.trn.x, a, b)
+        args.max_epochs = args.max_epochs * 2   # conditional noise takes longer to converge
 
     # wandb logging
     wandb.init(project="comet-flows")
