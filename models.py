@@ -73,13 +73,16 @@ class StudentNLL(nn.Module):
         return -torch.sum(log_px)
 
 
-class TorchGPD:
+class TorchGPD(nn.Module):
     """
     Implement collection of two 1D GPD distributions to model tails of distribution.
     """
-    def __init__(self, device, data, a, b, alpha, beta):
-        self.device = device
-        self.a, self.b, self.alpha, self.beta = a, b, alpha, beta
+    def __init__(self, data, a, b, alpha, beta):
+        super().__init__()
+        self.register_buffer("a", a)
+        self.register_buffer("b", b)
+        self.register_buffer("alpha", alpha)
+        self.register_buffer("beta", beta)
         self.eps = 0
 
         # fit parameters of lower tail
@@ -115,19 +118,19 @@ class TorchGPD:
 
         # handle asymmetric tail logic: when a=0 (b=1, resp.), the left (right, resp.) tail will not matter
         # recall that torch.where will properly merge KDE with tails, so we can set points in middle to anything (zero)
-        middle_cdf = torch.zeros((middle_data.shape[0])).to(self.device)
+        middle_cdf = torch.zeros((middle_data.shape[0]))
         if self.a == 0:
-            lower_cdf = torch.zeros((lower_data.shape[0])).type(torch.FloatTensor).to(self.device)
+            lower_cdf = torch.zeros((lower_data.shape[0])).type(torch.FloatTensor)
         else:
             lower_cdf = self.a.detach().cpu().numpy() * (1 - genpareto.cdf(self.alpha.detach().cpu().numpy() - lower_data, loc=-self.lower_mu, scale=self.lower_sigma, c=self.lower_xi))
-            lower_cdf = torch.from_numpy(lower_cdf).type(torch.FloatTensor).to(self.device)
+            lower_cdf = torch.from_numpy(lower_cdf).type(torch.FloatTensor)
         if self.b == 1:
-            upper_cdf = torch.zeros((upper_data.shape[0])).type(torch.FloatTensor).to(self.device)
+            upper_cdf = torch.zeros((upper_data.shape[0])).type(torch.FloatTensor)
         else:
             upper_cdf = self.b.detach().cpu().numpy() + (1 - self.b.detach().cpu().numpy()) * genpareto.cdf(-self.beta.detach().cpu().numpy() + upper_data, loc=self.upper_mu, scale=self.upper_sigma, c=self.upper_xi)
-            upper_cdf = torch.from_numpy(upper_cdf).type(torch.FloatTensor).to(self.device)
+            upper_cdf = torch.from_numpy(upper_cdf).type(torch.FloatTensor)
 
-        cdf = torch.zeros_like(x).to(self.device)
+        cdf = torch.zeros_like(x)
         cdf[lower_idx] = lower_cdf
         cdf[middle_idx] = middle_cdf
         cdf[upper_idx] = upper_cdf
@@ -189,30 +192,30 @@ class CopulaLayer(nn.Module):
     decoupled 1D KDE on random sample of size n < N of data points.
     """
 
-    def __init__(self, device, data, n=1000, a=0.05, b=0.95, debug=False):
+    def __init__(self, data, n=1000, a=0.05, b=0.95, debug=False):
         super().__init__()
-        self.device = device
         if isinstance(data, np.ndarray):
-            data = torch.from_numpy(data).type(torch.FloatTensor).to(device)
+            data = torch.from_numpy(data).type(torch.FloatTensor)
         else:
-            data = data.to(device)
+            data = data
         self.n, self.d = data.shape
         self.n_anchors = min(n, self.n)
-        self.a = torch.FloatTensor([a]).to(device)      # lower quantile cutoff
-        self.b = torch.FloatTensor([b]).to(device)      # upper quantile cutoff
+        self.register_buffer("a", torch.FloatTensor([a]))      # lower quantile cutoff
+        self.register_buffer("b", torch.FloatTensor([b]))      # lower quantile cutoff
         data = data.sort(dim=0).values
         lower_idx = int(self.a * self.n)
         upper_idx = int(self.b * self.n) - 1
         anchor_idxs = torch.randint(low=lower_idx, high=upper_idx, size=(self.n_anchors,))
-        self.anchors = data[anchor_idxs].to(device)                 # sample for KDE
-        self.alpha = data[lower_idx].to(device)                     # lower data cutoff
-        self.beta = data[upper_idx].to(device)                      # upper data cutoff
+        self.register_buffer("anchors", data[anchor_idxs])               # sample for KDE
+        self.register_buffer("alpha", data[lower_idx])                   # lower data cutoff
+        self.register_buffer("beta", data[upper_idx])                    # upper data cutoff
 
         # define a tail model for each dimension i=1,...,d
-        self.tails = []
-        tail_idxs = torch.cat((torch.arange(0, lower_idx), torch.arange(upper_idx, self.n - 1))).to(device)
+        tails = []
+        tail_idxs = torch.cat((torch.arange(0, lower_idx), torch.arange(upper_idx, self.n - 1)))
         for i in range(self.d):
-            self.tails.append(TorchGPD(device=self.device, data=data[tail_idxs, i], a=self.a, b=self.b, alpha=self.alpha[[i]], beta=self.beta[[i]]))
+            tails.append(TorchGPD(data=data[tail_idxs, i], a=self.a, b=self.b, alpha=self.alpha[[i]], beta=self.beta[[i]]))
+        self.tails = nn.ModuleList(tails)
 
         # echo xi parameters from tail model to command line
         print(f"Lower xi: {[x.lower_xi for x in self.tails]}")
@@ -255,8 +258,8 @@ class CopulaLayer(nn.Module):
                 # given data x, produce quantile vector u; use CDF for transformation
 
                 # compute CDF i wrt each anchor, then rescale with Definition 11 from Wiese and fix tails
-                kde_support = torch.from_numpy(self.mixture[i].support).to(x)
-                kde_cdf = torch.from_numpy(self.mixture[i].cdf).to(x)
+                kde_support = torch.from_numpy(self.mixture[i].support)
+                kde_cdf = torch.from_numpy(self.mixture[i].cdf)
                 cdf_i = Interp1d()(kde_support, kde_cdf, x_i)
                 F_a = Interp1d()(kde_support, kde_cdf, self.alpha[[i]])
                 F_b = Interp1d()(kde_support, kde_cdf, self.beta[[i]])
@@ -280,10 +283,10 @@ class CopulaLayer(nn.Module):
                 # given quantile u, produce data vector x; use inverse CDF for transformation
 
                 # compute inverseCDF i wrt each anchor, then rescale with Definition 11 from Wiese and fix tails
-                kde_support = torch.from_numpy(self.mixture[i].support).to(x)
-                kde_cdf = torch.from_numpy(self.mixture[i].cdf).to(x)
-                kde_icdf = torch.from_numpy(self.mixture[i].icdf).to(x)
-                ones_i = torch.linspace(0, 1, len(kde_icdf)).to(x)
+                kde_support = torch.from_numpy(self.mixture[i].support)
+                kde_cdf = torch.from_numpy(self.mixture[i].cdf)
+                kde_icdf = torch.from_numpy(self.mixture[i].icdf)
+                ones_i = torch.linspace(0, 1, len(kde_icdf))
                 icdf_i = Interp1d()(ones_i, kde_icdf, x_i)
 
                 # handle null tail (a=0, b=1) logic
