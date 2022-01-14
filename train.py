@@ -115,7 +115,7 @@ if __name__ == "__main__":
                                             image_size=data.image_size, img_every_n_epochs=args.img_epochs))
 
     # train
-    # trainer.fit(model, train_dataloader, val_dataloader)
+    trainer.fit(model, train_dataloader, val_dataloader)
 
     # test
     model.eval()
